@@ -23,7 +23,7 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lifepak 15 (Wersja Małpia - Test)'),
+        title: const Text('Lifepak 15 (Zorin Edition)'),
         backgroundColor: Colors.red[900],
       ),
       body: AnimatedBuilder(
@@ -33,92 +33,92 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
 
           return Center(
             child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // --- MONITOR GÓRNY ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Column(
+                        children: [
+                          const Text(
+                            'Czas akcji',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          Text(
+                            '${(state.totalElapsedGameTime ~/ 60).toString().padLeft(2, '0')}:${(state.totalElapsedGameTime % 60).toString().padLeft(2, '0')}',
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        children: [
+                          const Text(
+                            'RKO Timer',
+                            style: TextStyle(color: Colors.orange),
+                          ),
+                          Text(
+                            '${state.cprSecondsRemaining} s',
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              color: state.isCprActive
+                                  ? Colors.greenAccent
+                                  : (state.cprSecondsRemaining == 0
+                                        ? Colors.redAccent
+                                        : Colors.grey),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
                   Text(
-                    'Faza algorytmu: ${state.currentPhase.name.toUpperCase()}',
+                    'Faza: ${state.currentPhase.name.toUpperCase()}',
                     style: const TextStyle(fontSize: 20, color: Colors.blue),
                   ),
                   const SizedBox(height: 10),
 
                   Text(
                     state.currentPhase == ResuscitationPhase.analyzing
-                        ? 'ANALIZA RYTMU...'
-                        : 'Rytm: ${state.monitorRhythm.name.toUpperCase()}',
+                        ? 'ANALIZA EKG...'
+                        : 'EKG: ${state.monitorRhythm.name.toUpperCase()}',
                     style: TextStyle(
-                      fontSize: 32,
-                      color: state.monitorRhythm == PatientRhythm.unknown
-                          ? Colors.grey
+                      fontSize: 36,
+                      color: state.currentPhase == ResuscitationPhase.analyzing
+                          ? Colors.yellow
                           : Colors.red,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(height: 10),
-
-                  // Świecący wskaźnik RKO
-                  if (state.isCprActive)
-                    const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        '🚨 RKO W TOKU 🚨',
-                        style: TextStyle(
-                          color: Colors.greenAccent,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-
-                  const SizedBox(height: 10),
-                  Text(
-                    'Czas do reoceny (RKO): ${state.cprSecondsRemaining} s',
-                    style: const TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text('Całkowity czas akcji: ${state.totalElapsedGameTime} s'),
                   const SizedBox(height: 20),
 
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    color: Colors.grey[800],
-                    child: Column(
-                      children: [
-                        Text(
-                          'Wyładowania: ${state.shocksDelivered}',
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                        Text(
-                          'Defibrylator naładowany: ${state.isDefibCharged ? "TAK" : "NIE"}',
-                          style: TextStyle(
-                            fontSize: 20,
-                            color: state.isDefibCharged
-                                ? Colors.green
-                                : Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
+                  // --- PANEL AKCJI ---
                   Wrap(
                     spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.center,
                     children: [
                       ElevatedButton(
                         onPressed:
                             state.currentPhase ==
                                 ResuscitationPhase.assessmentABCDE
-                            ? engine.startScenario
+                            ? engine.connectMonitor
                             : null,
                         child: const Text('PODŁĄCZ MONITOR'),
                       ),
                       ElevatedButton(
-                        // Rozpocząć RKO można zawsze, gdy gra trwa i RKO jeszcze nie jest włączone
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[700],
+                        ),
                         onPressed:
                             (state.currentPhase !=
                                     ResuscitationPhase.assessmentABCDE &&
@@ -127,36 +127,112 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                             : null,
                         child: const Text('ROZPOCZNIJ RKO'),
                       ),
-                      ElevatedButton(
-                        onPressed:
-                            (state.currentPhase ==
-                                    ResuscitationPhase.rhythmCheck ||
-                                state.isCprActive)
-                            ? engine.chargeDefibrillator
-                            : null,
-                        child: const Text('Ładuj Energię'),
-                      ),
+                      // Ręczne przerywanie RKO do oceny rytmu
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
+                          backgroundColor: Colors.blue[600],
                         ),
-                        // Wyładowanie jest aktywne tylko i wyłącznie gdy jest energia
-                        onPressed: state.isDefibCharged
-                            ? engine.deliverShock
+                        onPressed: state.isCprActive
+                            ? engine.stopCprAndAssess
                             : null,
-                        child: const Text('WYŁADOWANIE (SHOCK)'),
+                        child: const Text('ZATRZYMAJ RKO / OCEŃ RYTM'),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 10),
 
+                  // --- PANEL DEFIBRYLATORA ---
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[800],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Energia: ',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                        DropdownButton<int>(
+                          value: state.selectedEnergy,
+                          dropdownColor: Colors.grey[900],
+                          style: const TextStyle(
+                            color: Colors.yellow,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          items: [150, 200, 300, 360]
+                              .map(
+                                (e) => DropdownMenuItem(
+                                  value: e,
+                                  child: Text('${e}J'),
+                                ),
+                              )
+                              .toList(),
+                          onChanged:
+                              (state.isDefibCharging || state.isDefibCharged)
+                              ? null
+                              : (val) {
+                                  if (val != null) engine.setEnergy(val);
+                                },
+                        ),
+                        const SizedBox(width: 20),
+                        ElevatedButton(
+                          onPressed:
+                              (state.currentPhase !=
+                                      ResuscitationPhase.assessmentABCDE) &&
+                                  !state.isDefibCharged &&
+                                  !state.isDefibCharging
+                              ? engine.chargeDefibrillator
+                              : null,
+                          child: Text(
+                            state.isDefibCharging ? 'ŁADOWANIE...' : 'ŁADUJ',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: state.isDefibCharged
+                                ? Colors.red
+                                : Colors.grey,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 15,
+                            ),
+                          ),
+                          onPressed: state.isDefibCharged
+                              ? engine.deliverShock
+                              : null,
+                          child: const Text(
+                            'SHOCK',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // --- FARMAKOLOGIA ---
                   Container(
                     padding: const EdgeInsets.all(16),
-                    color: Colors.blue[900],
+                    decoration: BoxDecoration(
+                      color: Colors.blue[900],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                     child: Column(
                       children: [
-                        ElevatedButton(
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.medical_services),
+                          label: const Text('Otwórz Ampularium'),
                           onPressed:
                               (state.isPreparingDrug ||
                                   state.preparedDrugs.length >= 2)
@@ -170,37 +246,36 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                                     ),
                                   );
                                 },
-                          child: const Text(
-                            'Otwórz Ampularium (Tacka na 2 leki)',
-                          ),
                         ),
                         const SizedBox(height: 10),
-
                         if (state.preparedDrugs.isEmpty)
                           const Text(
                             'Tacka z lekami: PUSTA',
-                            style: TextStyle(color: Colors.white, fontSize: 16),
+                            style: TextStyle(color: Colors.white70),
                           ),
-
                         ...state.preparedDrugs.asMap().entries.map((entry) {
                           int index = entry.key;
-                          String drugName = entry.value;
-                          bool isReady = !drugName.startsWith(
+                          String drugNameRaw = entry.value;
+                          bool isReady = !drugNameRaw.startsWith(
                             'Przygotowywanie',
                           );
+                          String displayName = drugNameRaw.replaceAll(
+                            '|',
+                            ' ',
+                          ); // Odtwarzamy wygląd
 
                           return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6.0),
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  '💉 ${index + 1}: $drugName',
+                                  '💉 $displayName',
                                   style: TextStyle(
                                     color: isReady
                                         ? Colors.greenAccent
                                         : Colors.yellow,
-                                    fontSize: 18,
+                                    fontSize: 16,
                                   ),
                                 ),
                                 const SizedBox(width: 15),
@@ -209,10 +284,8 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.red,
                                     ),
-                                    // Podać leki można tylko podczas uciśnięć!
-                                    onPressed: state.isCprActive
-                                        ? () => engine.administerDrug(index)
-                                        : null,
+                                    onPressed: () =>
+                                        engine.administerDrug(index),
                                     child: const Text('PODAĆ'),
                                   ),
                               ],
@@ -223,35 +296,61 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                     ),
                   ),
 
-                  // DZIENNIK BŁĘDÓW DO TESTÓW LOGIKI
-                  if (state.log.isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(top: 20),
-                      padding: const EdgeInsets.all(16),
-                      color: Colors.black,
-                      child: Column(
-                        children: [
-                          const Text(
-                            'DZIENNIK ZDARZEŃ (Wypisze Ci błędy):',
-                            style: TextStyle(
-                              color: Colors.purpleAccent,
-                              fontSize: 18,
-                            ),
-                          ),
-                          ...state.log.map(
-                            (logItem) => Text(
-                              logItem,
-                              style: TextStyle(
-                                color: logItem.contains('BŁĄD')
-                                    ? Colors.red
-                                    : Colors.greenAccent,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                  const SizedBox(height: 20),
+
+                  // --- DZIENNIK ZDARZEŃ ---
+                  Container(
+                    height: 250,
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'DZIENNIK ZDARZEŃ (EBM)',
+                          style: TextStyle(
+                            color: Colors.purpleAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Divider(color: Colors.grey),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: state.log.length,
+                            itemBuilder: (context, index) {
+                              String logItem = state.log[index];
+                              Color textColor = Colors.white70;
+                              if (logItem.contains('KRYTYCZNY BŁĄD') ||
+                                  logItem.contains('BŁĄD EBM'))
+                                textColor = Colors.redAccent;
+                              else if (logItem.contains('SUKCES'))
+                                textColor = Colors.greenAccent;
+                              else if (logItem.contains('DIAGNOZA'))
+                                textColor = Colors.orangeAccent;
+                              else if (logItem.contains('OSTRZEŻENIE'))
+                                textColor = Colors.yellowAccent;
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 4.0),
+                                child: Text(
+                                  logItem,
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

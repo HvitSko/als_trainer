@@ -1,5 +1,3 @@
-enum PatientRhythm { unknown, vf, pvt, asystole, pea }
-
 enum ResuscitationPhase {
   assessmentABCDE,
   analyzing,
@@ -8,31 +6,31 @@ enum ResuscitationPhase {
   postResuscitation,
 }
 
+enum PatientRhythm { unknown, vf, pvt, asystole, pea }
+
 class AlsScenarioState {
-  ResuscitationPhase currentPhase;
-  PatientRhythm monitorRhythm;
-  int cprSecondsRemaining;
-  int shocksDelivered;
-  bool isDefibCharged;
-  int totalElapsedGameTime;
-  List<String> preparedDrugs;
-  bool isPreparingDrug;
+  ResuscitationPhase currentPhase = ResuscitationPhase.assessmentABCDE;
+  PatientRhythm monitorRhythm = PatientRhythm.unknown;
 
-  bool isCprActive;
-  // O to krzyczał terminal! Tutaj musi być dokładnie słowo 'log'
-  List<String> log;
+  int totalElapsedGameTime = 0;
+  int cprSecondsRemaining = 0;
+  bool isCprActive = false;
 
-  AlsScenarioState({
-    this.currentPhase = ResuscitationPhase.assessmentABCDE,
-    this.monitorRhythm = PatientRhythm.unknown,
-    this.cprSecondsRemaining = 120,
-    this.shocksDelivered = 0,
-    this.isDefibCharged = false,
-    this.totalElapsedGameTime = 0,
-    this.preparedDrugs = const [],
-    this.isPreparingDrug = false,
-    this.isCprActive = false,
-    // I tutaj domyślnie pusta lista pod nazwą 'log'
-    this.log = const [],
-  });
+  int shocksDelivered = 0;
+  bool isDefibCharged = false;
+  bool isDefibCharging = false;
+  int selectedEnergy = 150;
+  int chargedEnergy = 0;
+  int lastShockEnergy = 0; // NOWE: Pamięta energię poprzedniego wyładowania
+
+  List<String> preparedDrugs = [];
+  bool isPreparingDrug = false;
+
+  List<String> log = [];
+
+  int cprCyclesCompleted = 0;
+  int lastAdrenalineTime = -999;
+  int lastAmiodaroneTime = -999;
+
+  int cprInactiveSeconds = 0; // NOWE: Licznik "hands-off time"
 }
