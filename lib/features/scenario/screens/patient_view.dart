@@ -11,7 +11,9 @@ class PatientView extends StatelessWidget {
     return AnimatedBuilder(
       animation: engine,
       builder: (context, _) {
-        final state = engine.state; // Docelowo pociągniemy dane z PatientModel
+        // ZACZYNAMY KORZYSTAĆ Z PATIENT MODELU!
+        final state = engine.state;
+        final patient = state.patient;
 
         return Container(
           color: Colors.blueGrey[900],
@@ -51,7 +53,7 @@ class PatientView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        "Badanie Wizualne (ABCDE)",
+                        "Badanie Fizykalne (ABCDE)",
                         style: TextStyle(
                           color: Colors.orangeAccent,
                           fontSize: 18,
@@ -59,22 +61,29 @@ class PatientView extends StatelessWidget {
                         ),
                       ),
                       const Divider(color: Colors.grey),
-                      _buildAssessmentRow(
-                        "Drogi Oddechowe:",
-                        state.airwayStatus.name.toUpperCase(),
-                      ),
+                      _buildAssessmentRow("Skóra:", patient.skinCondition),
                       _buildAssessmentRow(
                         "Klatka piersiowa:",
-                        "Brak własnych ruchów oddechowych",
+                        patient.chestMovement,
                       ),
+                      _buildAssessmentRow("Źrenice:", patient.pupils),
                       _buildAssessmentRow(
-                        "Skóra:",
-                        "Blada, chłodna, sinica obwodowa",
+                        "Szacowana waga:",
+                        "${patient.weight.toStringAsFixed(0)} kg",
                       ),
-                      _buildAssessmentRow(
-                        "Waga szacunkowa:",
-                        "${state.patientWeight.toStringAsFixed(0)} kg",
-                      ),
+                      const SizedBox(height: 10),
+                      if (state.isTempMeasured)
+                        _buildAssessmentRow(
+                          "Temperatura:",
+                          "${patient.temperature.toStringAsFixed(1)} °C",
+                          color: Colors.cyan,
+                        ),
+                      if (state.isGlucoseMeasured)
+                        _buildAssessmentRow(
+                          "Glikemia:",
+                          "${patient.bloodGlucose} mg/dL",
+                          color: Colors.redAccent,
+                        ),
                     ],
                   ),
                 ),
@@ -86,19 +95,26 @@ class PatientView extends StatelessWidget {
     );
   }
 
-  Widget _buildAssessmentRow(String title, String value) {
+  Widget _buildAssessmentRow(
+    String title,
+    String value, {
+    Color color = Colors.white,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 16)),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: color,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],

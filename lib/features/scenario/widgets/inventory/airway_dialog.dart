@@ -53,7 +53,7 @@ class _AirwayDialogState extends State<AirwayDialog>
                 style: TextStyle(color: Colors.blueAccent),
               ),
               Text(
-                'Waga: ${state.patientWeight.toStringAsFixed(0)} kg',
+                'Waga: ${state.patient.weight.toStringAsFixed(0)} kg',
                 style: const TextStyle(color: Colors.white, fontSize: 16),
               ),
             ],

@@ -40,7 +40,9 @@ class MonitorView extends StatelessWidget {
                   ),
                   _buildMetric(
                     "ETCO2",
-                    state.isCapnographyAttached ? '${state.etco2} mmHg' : '--',
+                    state.isCapnographyAttached
+                        ? '${state.patient.etCo2} mmHg'
+                        : '--',
                     Colors.yellowAccent,
                   ),
                 ],
@@ -57,6 +59,7 @@ class MonitorView extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 decoration: BoxDecoration(
+                  // ignore: deprecated_member_use
                   color: Colors.green[900]?.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -234,13 +237,16 @@ class MonitorView extends StatelessWidget {
                             String logItem = state.log[index];
                             Color textColor = Colors.white70;
                             if (logItem.contains('KRYTYCZNY BŁĄD') ||
-                                logItem.contains('BŁĄD EBM'))
+                                logItem.contains('BŁĄD EBM')) {
                               textColor = Colors.redAccent;
-                            else if (logItem.contains('SUKCES'))
+                            } else if (logItem.contains('SUKCES'))
+                              // ignore: curly_braces_in_flow_control_structures
                               textColor = Colors.greenAccent;
                             else if (logItem.contains('DIAGNOZA'))
+                              // ignore: curly_braces_in_flow_control_structures
                               textColor = Colors.orangeAccent;
                             else if (logItem.contains('OSTRZEŻENIE'))
+                              // ignore: curly_braces_in_flow_control_structures
                               textColor = Colors.yellowAccent;
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 4.0),

@@ -55,7 +55,7 @@ class _DiagnosticsDialogState extends State<DiagnosticsDialog> {
                       icon: const Icon(Icons.bloodtype),
                       label: Text(
                         state.isGlucoseMeasured
-                            ? 'Glukoza: ${state.bloodGlucose}'
+                            ? 'Glukoza: ${state.patient.bloodGlucose}'
                             : 'Mierz Glukozę',
                       ),
                       style: ElevatedButton.styleFrom(
@@ -71,7 +71,7 @@ class _DiagnosticsDialogState extends State<DiagnosticsDialog> {
                       icon: const Icon(Icons.thermostat),
                       label: Text(
                         state.isTempMeasured
-                            ? 'Temp: ${state.temperature.toStringAsFixed(1)}°C'
+                            ? 'Temp: ${state.patient.temperature.toStringAsFixed(1)}°C'
                             : 'Mierz Temp.',
                       ),
                       style: ElevatedButton.styleFrom(

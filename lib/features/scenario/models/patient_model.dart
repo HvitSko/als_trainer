@@ -1,4 +1,4 @@
-// lib/features/scenario/models/patient_model.dart
+import 'dart:math';
 
 enum ReversibleCause {
   none,
@@ -13,20 +13,18 @@ enum ReversibleCause {
 }
 
 class PatientModel {
-  // Parametry życiowe
-  int heartRate; // Elektryczna czynność serca (widoczna na EKG)
-  bool hasPulse; // KRYTYCZNE W EBM: Czy to PEA czy ROSC?
+  int heartRate;
+  bool hasPulse;
   int systolicBP;
   int diastolicBP;
-  int? spO2; // Null, gdy brak fali tętna (np. w NZK)
+  int? spO2;
   int etCo2;
   double temperature;
   int bloodGlucose;
+  double weight; // NOWE: Waga przeniesiona do pacjenta
 
-  // Ukryty wróg - 4H4T
   ReversibleCause hiddenCause;
 
-  // Fizykalne objawy (Widok Pacjenta)
   String skinCondition;
   String chestMovement;
   String pupils;
@@ -40,26 +38,29 @@ class PatientModel {
     required this.etCo2,
     required this.temperature,
     required this.bloodGlucose,
+    required this.weight,
     required this.hiddenCause,
     required this.skinCondition,
     required this.chestMovement,
     required this.pupils,
   });
 
-  // Konstruktor dla standardowego pacjenta w NZK (Randomizacja)
+  // Generator pacjenta w NZK (RNG)
   factory PatientModel.generateRandomArrest() {
-    // Tutaj w przyszłości podepniemy potężny silnik losujący (RNG)
+    final rand = Random();
+
     return PatientModel(
-      heartRate: 0, // Zależne od rytmu, w asystolii 0, w VF np. 250
-      hasPulse: false, // W NZK zawsze false
+      heartRate: 0,
+      hasPulse: false,
       systolicBP: 0,
       diastolicBP: 0,
-      spO2: null, // Pulsoksymetr nie czyta w NZK!
-      etCo2: 0, // Rośnie dopiero, gdy zaczynamy uciski/wentylację
-      temperature: 36.6, // Docelowo losowane np. 31.0 dla hipotermii
-      bloodGlucose: 100, // Docelowo losowane
-      hiddenCause: ReversibleCause.none, // Do rozbudowy 4H4T
-      skinCondition: "Blada, spocona, chłodna",
+      spO2: null,
+      etCo2: 0,
+      temperature: 30.0 + (rand.nextInt(75) / 10), // 30.0 - 37.5 °C
+      bloodGlucose: 40 + rand.nextInt(160), // 40 - 200 mg/dL
+      weight: 60.0 + rand.nextInt(50), // 60 - 110 kg
+      hiddenCause: ReversibleCause.none, // Do rozbudowy 4H4T w kolejnych fazach
+      skinCondition: "Blada, spocona, chłodna, zasinienie obwodowe",
       chestMovement: "Brak ruchów oddechowych",
       pupils: "Szerokie, niereaktywne na światło",
     );

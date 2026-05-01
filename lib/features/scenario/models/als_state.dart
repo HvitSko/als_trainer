@@ -1,3 +1,5 @@
+import 'patient_model.dart';
+
 enum ResuscitationPhase {
   assessmentABCDE,
   analyzing,
@@ -13,6 +15,10 @@ enum AirwayType { none, basic, bvm, igel, endotracheal }
 enum IntubationStatus { none, esophageal, rightMainstem, correct }
 
 class AlsScenarioState {
+  // GŁÓWNY BOHATER
+  late PatientModel patient;
+
+  // STAN SCENARIUSZA
   ResuscitationPhase currentPhase = ResuscitationPhase.assessmentABCDE;
   PatientRhythm monitorRhythm = PatientRhythm.unknown;
 
@@ -36,26 +42,19 @@ class AlsScenarioState {
   int lastAmiodaroneTime = -999;
   int cprInactiveSeconds = 0;
 
-  // --- DRZWI DO PŁUC (AIRWAY & BREATHING) ---
+  // --- DRZWI DO PŁUC (Narzędzia i akcje - nie fizjologia!) ---
   AirwayType airwayStatus = AirwayType.none;
   IntubationStatus intubationStatus = IntubationStatus.none;
-  double patientWeight = 75.0;
   int oxygenFlow = 0;
   bool isPreoxygenated = false;
-  int etco2 = 0;
   bool isCapnographyAttached = false;
   bool isAuscultated = false;
   bool intubationAttemptInProgress = false;
-
-  // NOWE: Zmienna do weryfikacji położenia rurki Schrödingera
   bool isIntubationVerified = false;
 
-  // --- DIAGNOSTYKA I 4H4T ---
-  int bloodGlucose = 0;
-  double temperature = 0.0;
+  // --- DIAGNOSTYKA (Flagi akcji Zespołu) ---
   bool isGlucoseMeasured = false;
   bool isTempMeasured = false;
   bool isPhysicalExamDone = false;
-
   Set<String> considered4H4T = {};
 }
