@@ -73,8 +73,8 @@ class _AirwayDialogState extends State<AirwayDialog>
                       child: Slider(
                         value: _currentO2,
                         min: 0,
-                        max: 15,
-                        divisions: 15,
+                        max: 20,
+                        divisions: 20,
                         activeColor: Colors.blue,
                         label: _currentO2.round().toString(),
                         onChanged: (val) {

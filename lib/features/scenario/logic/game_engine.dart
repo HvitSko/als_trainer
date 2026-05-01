@@ -208,6 +208,18 @@ class GameEngine extends ChangeNotifier {
     notifyListeners();
   }
 
+  void disarmDefibrillator() {
+    if (!state.isDefibCharged) return;
+
+    state.isDefibCharged = false;
+    state.chargedEnergy = 0; // Zerujemy energię
+
+    _logEvent(
+      "AKCJA: Defibrylator bezpiecznie rozładowany (Internal Discharge). Bezpieczeństwo zespołu zachowane!",
+    );
+    notifyListeners();
+  }
+
   Future<void> prepareDrug(String drugName, String dose) async {
     if (state.preparedDrugs.length >= 2 || state.isPreparingDrug) return;
     state.isPreparingDrug = true;

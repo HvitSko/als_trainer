@@ -174,9 +174,11 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                       color: Colors.grey[800],
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 10,
+                      runSpacing: 10,
                       children: [
                         const Text(
                           'Energia: ',
@@ -205,7 +207,6 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                                   if (val != null) engine.setEnergy(val);
                                 },
                         ),
-                        const SizedBox(width: 20),
                         ElevatedButton(
                           onPressed:
                               (state.currentPhase !=
@@ -218,12 +219,30 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                             state.isDefibCharging ? 'ŁADOWANIE...' : 'ŁADUJ',
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        // NOWY PRZYCISK: ROZŁADOWANIE
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: state.isDefibCharged
+                                ? Colors.blueGrey[700]
+                                : Colors.grey[900],
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 15,
+                              vertical: 15,
+                            ),
+                          ),
+                          onPressed: state.isDefibCharged
+                              ? engine.disarmDefibrillator
+                              : null,
+                          child: const Text(
+                            'ROZŁADUJ',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: state.isDefibCharged
                                 ? Colors.red
-                                : Colors.grey,
+                                : Colors.grey[900],
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 15,
