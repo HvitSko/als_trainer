@@ -65,11 +65,20 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(
-        selectedDrug == null
-            ? 'Wybierz lek'
-            : 'Wybierz dawkę dla: $selectedDrug',
-        style: const TextStyle(color: Colors.orange),
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Ampularium ZRM',
+            style: TextStyle(color: Colors.blueAccent),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.redAccent, size: 32),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
       ),
       backgroundColor: Colors.grey[900],
       content: SizedBox(
