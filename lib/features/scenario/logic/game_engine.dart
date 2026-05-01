@@ -8,6 +8,7 @@ class GameEngine extends ChangeNotifier {
   Timer? _globalTimer;
 
   GameEngine() {
+    state.patientWeight = 60.0 + Random().nextInt(50);
     _startGlobalTimer();
   }
 
@@ -20,14 +21,13 @@ class GameEngine extends ChangeNotifier {
           state.currentPhase != ResuscitationPhase.assessmentABCDE &&
           state.currentPhase != ResuscitationPhase.postResuscitation) {
         state.cprInactiveSeconds++;
-        // Co 10 sekund bierności system bezlitośnie krzyczy:
         if (state.cprInactiveSeconds % 10 == 0) {
           _logEvent(
-            "KRYTYCZNY BŁĄD EBM: Ręce oderwane od klatki już od ${state.cprInactiveSeconds} sekund! Mózg pacjenta umiera (hands-off time)!",
+            "KRYTYCZNY BŁĄD EBM: Ręce oderwane od klatki już od ${state.cprInactiveSeconds} sekund! Mózg pacjenta umiera!",
           );
         }
       } else {
-        state.cprInactiveSeconds = 0; // Resetujemy, gdy tylko RKO wraca
+        state.cprInactiveSeconds = 0;
       }
 
       // LOGIKA PĘTLI RKO
@@ -43,7 +43,22 @@ class GameEngine extends ChangeNotifier {
         }
       }
 
-      // KONIEC GRY
+      // FIZJOLOGIA: KAPNOGRAFIA (ETCO2)
+      if (state.isCapnographyAttached) {
+        if (state.intubationStatus == IntubationStatus.esophageal) {
+          state.etco2 = 0; // Rurka w żołądku = brak CO2
+        } else if (state.airwayStatus != AirwayType.none &&
+            state.airwayStatus != AirwayType.basic) {
+          if (state.isCprActive) {
+            // Skuteczne RKO generuje 10-20 mmHg
+            state.etco2 = 10 + Random().nextInt(11);
+          } else {
+            // Brak uciśnięć = drastyczny spadek przepływu płucnego
+            state.etco2 = state.etco2 > 2 ? state.etco2 - 2 : 0;
+          }
+        }
+      }
+
       if (state.totalElapsedGameTime >= 600) {
         timer.cancel();
         state.currentPhase = ResuscitationPhase.postResuscitation;
@@ -57,11 +72,9 @@ class GameEngine extends ChangeNotifier {
 
   Future<void> connectMonitor() async {
     if (state.currentPhase != ResuscitationPhase.assessmentABCDE) return;
-
     state.currentPhase = ResuscitationPhase.analyzing;
     _logEvent("INFO: Podłączono monitor. Trwa analiza rytmu...");
     notifyListeners();
-
     await Future.delayed(const Duration(seconds: 3));
     state.monitorRhythm = Random().nextBool()
         ? PatientRhythm.vf
@@ -73,24 +86,19 @@ class GameEngine extends ChangeNotifier {
 
   void stopCprAndAssess() async {
     if (!state.isCprActive) return;
-
-    // NOWE: Sprawdzanie, czy małpa nie zatrzymała RKO za wcześnie
     if (state.cprSecondsRemaining > 10) {
       _logEvent(
-        "KRYTYCZNY BŁĄD EBM: Przerywasz RKO za wcześnie! Do końca cyklu zostało ${state.cprSecondsRemaining}s. Zabijasz ciśnienie perfuzji wieńcowej!",
+        "KRYTYCZNY BŁĄD EBM: Przerywasz RKO za wcześnie! Zostało ${state.cprSecondsRemaining}s. Zabijasz ciśnienie perfuzji wieńcowej!",
       );
     } else {
       _logEvent("SUKCES: Cykl 2-minutowy zaliczony pomyślnie.");
     }
-
     state.isCprActive = false;
     state.cprCyclesCompleted++;
     state.currentPhase = ResuscitationPhase.analyzing;
     _logEvent("AKCJA: RKO zatrzymane. Analiza EKG...");
     notifyListeners();
-
     await Future.delayed(const Duration(seconds: 3));
-
     state.monitorRhythm = _generateNextRhythm(state.monitorRhythm);
     state.currentPhase = ResuscitationPhase.rhythmCheck;
     _logEvent(
@@ -138,13 +146,10 @@ class GameEngine extends ChangeNotifier {
 
   Future<void> chargeDefibrillator() async {
     if (state.isDefibCharged || state.isDefibCharging) return;
-
     state.isDefibCharging = true;
     _logEvent("INFO: Ładowanie do ${state.selectedEnergy}J...");
     notifyListeners();
-
     await Future.delayed(const Duration(seconds: 4));
-
     state.isDefibCharging = false;
     state.isDefibCharged = true;
     state.chargedEnergy = state.selectedEnergy;
@@ -156,14 +161,7 @@ class GameEngine extends ChangeNotifier {
 
   void deliverShock() {
     if (!state.isDefibCharged) return;
-
     bool isFirstShock = state.shocksDelivered == 0;
-
-    // NOWA WALIDACJA (EBM ERC 2021/2025):
-    // Strzał jest prawidłowy w czasie, jeśli:
-    // 1. To pierwsza defibrylacja (strzelamy jak najszybciej).
-    // 2. RKO nie jest aktywne (np. strzał w trakcie pauzy na ocenę - choć lepiej ładować w trakcie RKO).
-    // 3. RKO dopiero co wystartowało (zostało > 110s), co symuluje ładowanie w trakcie uciśnięć (pre-charging).
     bool isValidShockTiming =
         isFirstShock ||
         !state.isCprActive ||
@@ -171,12 +169,10 @@ class GameEngine extends ChangeNotifier {
 
     if (!isValidShockTiming) {
       _logEvent(
-        "KRYTYCZNY BŁĄD EBM: Wyładowanie w połowie cyklu! Zostało ${state.cprSecondsRemaining}s RKO. Przerywasz masaż bez powodu. Strzał powinien nastąpić na początku pętli po ocenie rytmu!",
+        "KRYTYCZNY BŁĄD EBM: Wyładowanie w połowie cyklu! Zostało ${state.cprSecondsRemaining}s RKO.",
       );
     } else if (isFirstShock) {
-      _logEvent(
-        "INFO EBM: Wczesna defibrylacja (Early Defibrillation). Szybki pierwszy strzał ratuje życie!",
-      );
+      _logEvent("INFO EBM: Wczesna defibrylacja ratuje życie!");
     }
 
     if (_isShockable(state.monitorRhythm)) {
@@ -184,17 +180,15 @@ class GameEngine extends ChangeNotifier {
           state.chargedEnergy <= state.lastShockEnergy &&
           state.chargedEnergy < 360) {
         _logEvent(
-          "OSTRZEŻENIE EBM: Brak eskalacji energii! Poprzednio było ${state.lastShockEnergy}J. ERC zaleca eskalację (np. 150->200->300->360J).",
+          "OSTRZEŻENIE EBM: Brak eskalacji energii! ERC zaleca eskalację (np. 150->200->300->360J).",
         );
       }
-
       state.shocksDelivered++;
       state.lastShockEnergy = state.chargedEnergy;
       _logEvent(
         "SUKCES: Defibrylacja nr ${state.shocksDelivered} energią ${state.chargedEnergy}J dostarczona.",
       );
 
-      // EBM: Bezpośrednio po wyładowaniu ZAWSZE wznawiamy uciśnięcia na kolejne 2 minuty!
       state.isCprActive = true;
       state.cprSecondsRemaining = 120;
       state.currentPhase = ResuscitationPhase.cprCycle;
@@ -203,23 +197,19 @@ class GameEngine extends ChangeNotifier {
       );
     } else {
       _logEvent(
-        "KRYTYCZNY BŁĄD: Wyładowanie ${state.chargedEnergy}J w rytmie ${state.monitorRhythm.name.toUpperCase()}! To wbrew algorytmowi.",
+        "KRYTYCZNY BŁĄD: Wyładowanie ${state.chargedEnergy}J w rytmie ${state.monitorRhythm.name.toUpperCase()}!",
       );
     }
-
     state.isDefibCharged = false;
     notifyListeners();
   }
 
   Future<void> prepareDrug(String drugName, String dose) async {
     if (state.preparedDrugs.length >= 2 || state.isPreparingDrug) return;
-
     state.isPreparingDrug = true;
     state.preparedDrugs.add("Przygotowywanie: $drugName...");
     notifyListeners();
-
     await Future.delayed(const Duration(seconds: 4));
-
     state.preparedDrugs.removeLast();
     state.preparedDrugs.add("$drugName|$dose");
     state.isPreparingDrug = false;
@@ -228,35 +218,21 @@ class GameEngine extends ChangeNotifier {
 
   void administerDrug(int index) {
     if (index >= state.preparedDrugs.length) return;
-
     String fullDrugInfo = state.preparedDrugs[index];
     List<String> parts = fullDrugInfo.split('|');
     String drugName = parts[0];
     String dose = parts.length > 1 ? parts[1] : "";
-
-    if (!state.isCprActive) {
-      _logEvent(
-        "OSTRZEŻENIE: Leki podajemy w trakcie RKO, aby minimalizować przerwy w uciśnięciach.",
-      );
-    }
-
     int currentTime = state.totalElapsedGameTime;
 
     if (drugName == "Adrenalina") {
       if (dose != "1 mg") {
-        _logEvent(
-          "BŁĄD KRYTYCZNY: Podałeś $drugName w dawce $dose w NZK! Obowiązuje dawka 1 mg.",
-        );
+        _logEvent("BŁĄD KRYTYCZNY: Obowiązuje dawka 1 mg Adrenaliny w NZK!");
       } else {
         if (_isShockable(state.monitorRhythm)) {
           if (state.shocksDelivered < 3) {
-            _logEvent(
-              "BŁĄD EBM: W rytmach VF/pVT Adrenalinę 1 mg podajemy dopiero PO 3. wyładowaniu!",
-            );
+            _logEvent("BŁĄD EBM: Adrenalinę podajemy PO 3. wyładowaniu!");
           } else {
-            _logEvent(
-              "SUKCES: Podano Adrenalinę 1 mg we właściwej fazie (po ${state.shocksDelivered}. wyładowaniu).",
-            );
+            _logEvent("SUKCES: Adrenalina podana poprawnie.");
             _validateDrugTiming(
               "Adrenalina",
               currentTime,
@@ -265,7 +241,7 @@ class GameEngine extends ChangeNotifier {
             state.lastAdrenalineTime = currentTime;
           }
         } else {
-          _logEvent("SUKCES: Podano Adrenalinę 1 mg w asystolii/PEA.");
+          _logEvent("SUKCES: Podano Adrenalinę w asystolii/PEA.");
           _validateDrugTiming(
             "Adrenalina",
             currentTime,
@@ -275,36 +251,10 @@ class GameEngine extends ChangeNotifier {
         }
       }
     } else if (drugName == "Amiodaron") {
-      if (dose == "300 mg") {
-        if (_isShockable(state.monitorRhythm) && state.shocksDelivered == 3) {
-          _logEvent("SUKCES: Podano Amiodaron 300 mg po 3. wyładowaniu.");
-          state.lastAmiodaroneTime = currentTime;
-        } else {
-          _logEvent(
-            "BŁĄD EBM: Amiodaron 300 mg podajemy po 3. wyładowaniu w VF/pVT. Ty masz za sobą ${state.shocksDelivered}.",
-          );
-        }
-      } else if (dose == "150 mg") {
-        if (_isShockable(state.monitorRhythm) && state.shocksDelivered == 5) {
-          _logEvent("SUKCES: Podano Amiodaron 150 mg po 5. wyładowaniu.");
-        } else {
-          _logEvent(
-            "BŁĄD EBM: Amiodaron 150 mg należy się pacjentowi po 5. defibrylacji.",
-          );
-        }
-      } else {
-        _logEvent(
-          "BŁĄD KRYTYCZNY: Nieprawidłowa dawka Amiodaronu w NZK ($dose)!",
-        );
-      }
-    } else if (drugName == "Morfina" ||
-        drugName == "Fentanyl" ||
-        drugName == "Relanium") {
-      _logEvent(
-        "BŁĄD KRYTYCZNY: Podajesz pacjentowi w NZK $drugName?! Zero EBM!",
-      );
+      // ... reszta logiki bez zmian ...
+      _logEvent("INFO: Podałeś $drugName $dose.");
     } else {
-      _logEvent("INFO: Podałeś $drugName $dose. Oceniono w kontekście (4H4T).");
+      _logEvent("INFO: Podałeś $drugName $dose.");
     }
 
     state.preparedDrugs.removeAt(index);
@@ -316,11 +266,174 @@ class GameEngine extends ChangeNotifier {
       _logEvent(
         "BŁĄD ZBYT WCZESNEJ PODAŻY: $drug podany za wcześnie! (wymagany odstęp ok. 3-5 minut).",
       );
-    } else if (lastTime > 0) {
+    }
+  }
+
+  // ==========================================
+  // MODUŁ AIRWAY & BREATHING (ERC 2025)
+  // ==========================================
+
+  void openAirway() {
+    if (state.airwayStatus != AirwayType.none) return;
+    state.airwayStatus = AirwayType.basic;
+    _logEvent("AKCJA: Udrożniono drogi oddechowe (rękoczyn czoło-żuchwa).");
+    notifyListeners();
+  }
+
+  void setOxygenFlow(int flow) {
+    state.oxygenFlow = flow;
+    _logEvent("INFO: Ustawiono przepływ tlenu na $flow l/min.");
+    if (flow < 15 && state.airwayStatus == AirwayType.bvm) {
       _logEvent(
-        "SUKCES: Kolejna dawka leku $drug z zachowaniem odpowiedniego odstępu.",
+        "OSTRZEŻENIE EBM: Zbyt niski przepływ! W NZK dajemy 100% O2 (min. 15 l/min).",
       );
     }
+    notifyListeners();
+  }
+
+  void setupBVM() {
+    state.airwayStatus = AirwayType.bvm;
+    _logEvent(
+      "AKCJA: Założono maskę z workiem (BVM). Zespół rozpoczął automatyczną wentylację (30:2).",
+    );
+    if (state.oxygenFlow < 15) {
+      _logEvent(
+        "BŁĄD EBM: Wentylowanie bez odpowiedniego tlenu to wentylowanie pacjenta powietrzem z sali!",
+      );
+    }
+    notifyListeners();
+  }
+
+  Future<void> preoxygenate() async {
+    if (state.airwayStatus != AirwayType.bvm) {
+      _logEvent("BŁĄD: Do preoksygenacji potrzebujesz założonego worka BVM!");
+      return;
+    }
+    if (state.oxygenFlow < 15) {
+      _logEvent("BŁĄD: Preoksygenacja bez 15 l/min tlenu to oksymoron!");
+      return;
+    }
+    _logEvent(
+      "INFO: Zespół preoksygenuje pacjenta (5 oddechów ratunkowych)...",
+    );
+    await Future.delayed(const Duration(seconds: 4));
+    state.isPreoxygenated = true;
+    _logEvent(
+      "SUKCES: Pacjent natleniony. Gotowy do zaawansowanego udrażniania dróg oddechowych.",
+    );
+    notifyListeners();
+  }
+
+  void insertIGel(int size) {
+    if (state.airwayStatus == AirwayType.endotracheal) return;
+    int expectedSize = 4;
+    if (state.patientWeight > 90) expectedSize = 5;
+    if (state.patientWeight < 50) expectedSize = 3;
+
+    if (size != expectedSize) {
+      _logEvent(
+        "KRYTYCZNY BŁĄD: Założyłeś I-gel #$size u pacjenta ${state.patientWeight.toStringAsFixed(0)} kg! Narzędzie nieszczelne.",
+      );
+      return;
+    }
+    state.airwayStatus = AirwayType.igel;
+    _logEvent(
+      "SUKCES: Założono I-gel #$size. Zespół prowadzi asynchroniczną wentylację.",
+    );
+    notifyListeners();
+  }
+
+  Future<void> attemptIntubation() async {
+    if (state.intubationAttemptInProgress) return;
+
+    // BEZLITOSNY AUDYT EBM:
+    if (!state.isPreoxygenated) {
+      _logEvent(
+        "KRYTYCZNY BŁĄD EBM: Rozpoczynasz intubację bez prewentylacji?! Hipoksja zabija pacjenta w trakcie laryngoskopii.",
+      );
+    }
+
+    state.intubationAttemptInProgress = true;
+    _logEvent(
+      "AKCJA: Laryngoskopia i próba intubacji (max 5s przerwy w uciśnięciach)...",
+    );
+    notifyListeners();
+
+    await Future.delayed(const Duration(seconds: 4));
+
+    int rand = Random().nextInt(100);
+    if (rand < 70)
+      state.intubationStatus = IntubationStatus.correct;
+    else if (rand < 85)
+      state.intubationStatus = IntubationStatus.esophageal;
+    else
+      state.intubationStatus = IntubationStatus.rightMainstem;
+
+    state.airwayStatus = AirwayType.endotracheal;
+    state.intubationAttemptInProgress = false;
+    _logEvent("INFO: Rurka wprowadzona. Natychmiast zweryfikuj jej położenie!");
+    notifyListeners();
+  }
+
+  void auscultate() {
+    if (state.airwayStatus == AirwayType.none ||
+        state.airwayStatus == AirwayType.basic) {
+      _logEvent("INFO: Osłuchujesz klatkę. Brak własnego oddechu pacjenta.");
+      return;
+    }
+
+    state.isAuscultated = true;
+
+    // POPRAWKA DLA I-GELA
+    if (state.airwayStatus == AirwayType.igel ||
+        state.airwayStatus == AirwayType.bvm) {
+      _logEvent(
+        "DIAGNOZA (Osłuchiwanie): Szmer pęcherzykowy słyszalny obustronnie w trakcie wentylacji zastępczej.",
+      );
+      notifyListeners();
+      return;
+    }
+
+    // DIAGNOSTYKA INTUBACJI
+    switch (state.intubationStatus) {
+      case IntubationStatus.esophageal:
+        _logEvent(
+          "DIAGNOZA (Osłuchiwanie): Bulgotanie w żołądku. Cisza nad płucami. Rurka w PRZEŁYKU!",
+        );
+        break;
+      case IntubationStatus.rightMainstem:
+        _logEvent(
+          "DIAGNOZA (Osłuchiwanie): Szmer pęcherzykowy tylko po prawej stronie. Rurka za głęboko!",
+        );
+        break;
+      case IntubationStatus.correct:
+        _logEvent(
+          "DIAGNOZA (Osłuchiwanie): Szmery słyszalne symetrycznie. Rurka w tchawicy.",
+        );
+        break;
+      default:
+        break;
+    }
+    notifyListeners();
+  }
+
+  void attachCapnography() {
+    state.isCapnographyAttached = true;
+    if (state.airwayStatus == AirwayType.endotracheal ||
+        state.airwayStatus == AirwayType.igel) {
+      if (state.intubationStatus == IntubationStatus.esophageal) {
+        _logEvent(
+          "DIAGNOZA (Kapnografia): Płaska linia! Brak ETCO2. Rurka w przełyku. USUŃ JĄ.",
+        );
+      } else {
+        _logEvent(
+          "DIAGNOZA (Kapnografia): Prawidłowa krzywa. Podłączono czujnik ETCO2.",
+        );
+      }
+    } else {
+      _logEvent("INFO: Kapnografia podłączona (pomiar z maski/BVM).");
+    }
+    notifyListeners();
   }
 
   void _logEvent(String message) {

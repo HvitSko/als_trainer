@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'logic/game_engine.dart';
 import 'models/als_state.dart';
 import 'widgets/inventory/ampularium.dart';
+import 'widgets/inventory/airway_dialog.dart'; // NOWY IMPORT!
 
 class AlsTestScreen extends StatefulWidget {
   const AlsTestScreen({super.key});
@@ -38,6 +39,7 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // --- MONITOR GÓRNY ---
+                  // --- MONITOR GÓRNY ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -73,6 +75,29 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                                         ? Colors.redAccent
                                         : Colors.grey),
                             ),
+                          ),
+                        ],
+                      ),
+                      // NOWE: MONITOR ETCO2
+                      Column(
+                        children: [
+                          const Text(
+                            'ETCO2',
+                            style: TextStyle(color: Colors.yellowAccent),
+                          ),
+                          Text(
+                            state.isCapnographyAttached
+                                ? '${state.etco2}'
+                                : '--',
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.yellowAccent,
+                            ),
+                          ),
+                          const Text(
+                            'mmHg',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
                           ),
                         ],
                       ),
@@ -127,7 +152,6 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                             : null,
                         child: const Text('ROZPOCZNIJ RKO'),
                       ),
-                      // Ręczne przerywanie RKO do oceny rytmu
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue[600],
@@ -221,53 +245,74 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
 
                   const SizedBox(height: 30),
 
-                  // --- FARMAKOLOGIA ---
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[900],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Column(
-                      children: [
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.medical_services),
-                          label: const Text('Otwórz Ampularium'),
-                          onPressed:
-                              (state.isPreparingDrug ||
-                                  state.preparedDrugs.length >= 2)
-                              ? null
-                              : () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => AmpulariumDialog(
-                                      onDrugPrepared: (drug, dose) =>
-                                          engine.prepareDrug(drug, dose),
-                                    ),
-                                  );
-                                },
+                  // --- FARMAKOLOGIA I DRUGI ODDECHOWE (ZASOBY) ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.medical_services),
+                        label: const Text('Ampularium'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[900],
                         ),
-                        const SizedBox(height: 10),
-                        if (state.preparedDrugs.isEmpty)
-                          const Text(
-                            'Tacka z lekami: PUSTA',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ...state.preparedDrugs.asMap().entries.map((entry) {
+                        onPressed:
+                            (state.isPreparingDrug ||
+                                state.preparedDrugs.length >= 2)
+                            ? null
+                            : () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AmpulariumDialog(
+                                    onDrugPrepared: (drug, dose) =>
+                                        engine.prepareDrug(drug, dose),
+                                  ),
+                                );
+                              },
+                      ),
+                      const SizedBox(width: 20),
+                      // NOWY PRZYCISK: TORBA ODDECHOWA
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.air),
+                        label: const Text('Torba Oddechowa'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.cyan[800],
+                        ),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AirwayDialog(engine: engine),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Wyświetlanie przygotowanych leków
+                  if (state.preparedDrugs.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: state.preparedDrugs.asMap().entries.map((
+                          entry,
+                        ) {
                           int index = entry.key;
                           String drugNameRaw = entry.value;
                           bool isReady = !drugNameRaw.startsWith(
                             'Przygotowywanie',
                           );
-                          String displayName = drugNameRaw.replaceAll(
-                            '|',
-                            ' ',
-                          ); // Odtwarzamy wygląd
+                          String displayName = drugNameRaw.replaceAll('|', ' ');
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 4.0),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
                                   '💉 $displayName',
@@ -291,10 +336,9 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                               ],
                             ),
                           );
-                        }),
-                      ],
+                        }).toList(),
+                      ),
                     ),
-                  ),
 
                   const SizedBox(height: 20),
 
