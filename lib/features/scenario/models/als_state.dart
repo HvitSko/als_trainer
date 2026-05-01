@@ -39,13 +39,23 @@ class AlsScenarioState {
   // --- DRZWI DO PŁUC (AIRWAY & BREATHING) ---
   AirwayType airwayStatus = AirwayType.none;
   IntubationStatus intubationStatus = IntubationStatus.none;
-
   double patientWeight = 75.0;
   int oxygenFlow = 0;
-  bool isPreoxygenated = false; // NOWE: Flaga natlenienia przed ETI
-  int etco2 = 0; // NOWE: Wartość kapnografii
-
+  bool isPreoxygenated = false;
+  int etco2 = 0;
   bool isCapnographyAttached = false;
   bool isAuscultated = false;
   bool intubationAttemptInProgress = false;
+
+  // NOWE: Zmienna do weryfikacji położenia rurki Schrödingera
+  bool isIntubationVerified = false;
+
+  // --- DIAGNOSTYKA I 4H4T ---
+  int bloodGlucose = 0;
+  double temperature = 0.0;
+  bool isGlucoseMeasured = false;
+  bool isTempMeasured = false;
+  bool isPhysicalExamDone = false;
+
+  Set<String> considered4H4T = {};
 }

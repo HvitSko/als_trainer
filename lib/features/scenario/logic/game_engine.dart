@@ -9,6 +9,10 @@ class GameEngine extends ChangeNotifier {
 
   GameEngine() {
     state.patientWeight = 60.0 + Random().nextInt(50);
+    // Losujemy glukozę (40 - 200 mg/dL)
+    state.bloodGlucose = 40 + Random().nextInt(160);
+    // Losujemy temperaturę (30.0 - 37.5 °C)
+    state.temperature = 30.0 + (Random().nextInt(75) / 10);
     _startGlobalTimer();
   }
 
@@ -346,7 +350,6 @@ class GameEngine extends ChangeNotifier {
   Future<void> attemptIntubation() async {
     if (state.intubationAttemptInProgress) return;
 
-    // BEZLITOSNY AUDYT EBM:
     if (!state.isPreoxygenated) {
       _logEvent(
         "KRYTYCZNY BŁĄD EBM: Rozpoczynasz intubację bez prewentylacji?! Hipoksja zabija pacjenta w trakcie laryngoskopii.",
@@ -371,7 +374,12 @@ class GameEngine extends ChangeNotifier {
 
     state.airwayStatus = AirwayType.endotracheal;
     state.intubationAttemptInProgress = false;
-    _logEvent("INFO: Rurka wprowadzona. Natychmiast zweryfikuj jej położenie!");
+    state.isIntubationVerified =
+        false; // NOWE: Rurka jest w środku, ale niezweryfikowana!
+
+    _logEvent(
+      "INFO: Rurka wprowadzona. ŚLEPA INTUBACJA. Natychmiast zweryfikuj jej położenie (Stetoskop / Kapno)!",
+    );
     notifyListeners();
   }
 
@@ -384,7 +392,6 @@ class GameEngine extends ChangeNotifier {
 
     state.isAuscultated = true;
 
-    // POPRAWKA DLA I-GELA
     if (state.airwayStatus == AirwayType.igel ||
         state.airwayStatus == AirwayType.bvm) {
       _logEvent(
@@ -394,33 +401,42 @@ class GameEngine extends ChangeNotifier {
       return;
     }
 
-    // DIAGNOSTYKA INTUBACJI
-    switch (state.intubationStatus) {
-      case IntubationStatus.esophageal:
-        _logEvent(
-          "DIAGNOZA (Osłuchiwanie): Bulgotanie w żołądku. Cisza nad płucami. Rurka w PRZEŁYKU!",
-        );
-        break;
-      case IntubationStatus.rightMainstem:
-        _logEvent(
-          "DIAGNOZA (Osłuchiwanie): Szmer pęcherzykowy tylko po prawej stronie. Rurka za głęboko!",
-        );
-        break;
-      case IntubationStatus.correct:
-        _logEvent(
-          "DIAGNOZA (Osłuchiwanie): Szmery słyszalne symetrycznie. Rurka w tchawicy.",
-        );
-        break;
-      default:
-        break;
+    // Jeśli to ETI, weryfikujemy intubację!
+    if (state.airwayStatus == AirwayType.endotracheal) {
+      state.isIntubationVerified = true; // ZWERYFIKOWANO!
+
+      switch (state.intubationStatus) {
+        case IntubationStatus.esophageal:
+          _logEvent(
+            "DIAGNOZA (Osłuchiwanie): Bulgotanie w żołądku. Cisza nad płucami. Rurka w PRZEŁYKU!",
+          );
+          break;
+        case IntubationStatus.rightMainstem:
+          _logEvent(
+            "DIAGNOZA (Osłuchiwanie): Szmer pęcherzykowy tylko po prawej stronie. Rurka za głęboko!",
+          );
+          break;
+        case IntubationStatus.correct:
+          _logEvent(
+            "DIAGNOZA (Osłuchiwanie): Szmery słyszalne symetrycznie. Rurka w tchawicy.",
+          );
+          break;
+        default:
+          break;
+      }
     }
     notifyListeners();
   }
 
   void attachCapnography() {
     state.isCapnographyAttached = true;
+
     if (state.airwayStatus == AirwayType.endotracheal ||
         state.airwayStatus == AirwayType.igel) {
+      if (state.airwayStatus == AirwayType.endotracheal) {
+        state.isIntubationVerified = true; // ZWERYFIKOWANO KAPNOGRAFEM!
+      }
+
       if (state.intubationStatus == IntubationStatus.esophageal) {
         _logEvent(
           "DIAGNOZA (Kapnografia): Płaska linia! Brak ETCO2. Rurka w przełyku. USUŃ JĄ.",
@@ -432,6 +448,87 @@ class GameEngine extends ChangeNotifier {
       }
     } else {
       _logEvent("INFO: Kapnografia podłączona (pomiar z maski/BVM).");
+    }
+    notifyListeners();
+  }
+  // ==========================================
+  // MODUŁ DIAGNOSTYKI I 4H4T (ERC 2025)
+  // ==========================================
+
+  Future<void> measureGlucose() async {
+    if (state.isGlucoseMeasured) return;
+    _logEvent("AKCJA: Zespół nakłuwa palec. Pomiar glukozy...");
+    notifyListeners();
+    await Future.delayed(const Duration(seconds: 3));
+    state.isGlucoseMeasured = true;
+    if (state.bloodGlucose < 70) {
+      _logEvent(
+        "DIAGNOZA: Glikemia ${state.bloodGlucose} mg/dL! Hipoglikemia (rozważ dawniej '5H').",
+      );
+    } else {
+      _logEvent("DIAGNOZA: Glikemia ${state.bloodGlucose} mg/dL (w normie).");
+    }
+    notifyListeners();
+  }
+
+  Future<void> measureTemperature() async {
+    if (state.isTempMeasured) return;
+    _logEvent("AKCJA: Zespół mierzy temperaturę (błona bębenkowa)...");
+    notifyListeners();
+    await Future.delayed(const Duration(seconds: 3));
+    state.isTempMeasured = true;
+    if (state.temperature < 32.0) {
+      _logEvent(
+        "DIAGNOZA: Temperatura ${state.temperature.toStringAsFixed(1)} °C. CIĘŻKA HIPOTERMIA! Modyfikuj algorytm (odstępy między lekami, limit defibrylacji)!",
+      );
+    } else if (state.temperature < 35.0) {
+      _logEvent(
+        "DIAGNOZA: Temperatura ${state.temperature.toStringAsFixed(1)} °C. Hipotermia. Zapobiegaj utracie ciepła.",
+      );
+    } else {
+      _logEvent(
+        "DIAGNOZA: Temperatura ${state.temperature.toStringAsFixed(1)} °C (Normotermia).",
+      );
+    }
+    notifyListeners();
+  }
+
+  Future<void> performPhysicalExam() async {
+    if (state.isPhysicalExamDone) return;
+    _logEvent(
+      "AKCJA: Szybkie badanie urazowe (Exposure). Poszukiwanie 4H4T...",
+    );
+    notifyListeners();
+    await Future.delayed(const Duration(seconds: 4));
+    state.isPhysicalExamDone = true;
+
+    // Zwracamy poszlaki w zależności od wylosowanego scenariusza (tu uproszczone dla losowości bazowej)
+    String clues =
+        "Brak masywnych krwotoków (Hipowolemia mało prawdopodobna). ";
+    if (Random().nextBool()) {
+      clues += "Żyły szyjne zapadnięte. ";
+    } else {
+      clues +=
+          "Żyły szyjne poszerzone! (Pomyśl o Odmie prężnej, Tamponadzie, Zatorowości). ";
+    }
+    clues += "Źrenice szerokie, niereaktywne.";
+
+    _logEvent("DIAGNOZA (Badanie): $clues");
+    notifyListeners();
+  }
+
+  void considerCause(String cause) {
+    if (state.considered4H4T.contains(cause)) return;
+
+    state.considered4H4T.add(cause);
+    _logEvent(
+      "ZESPÓŁ ROZWAŻA: $cause. Kierownik analizuje potencjalne leczenie.",
+    );
+
+    if (cause == "Odma prężna" && state.isAuscultated) {
+      _logEvent(
+        "INFO: Wcześniejsze osłuchiwanie klatki sugerowało ${state.intubationStatus == IntubationStatus.correct ? 'symetryczny szmer' : 'asymetrię lub brak szmeru'}. Wyciągnij wnioski.",
+      );
     }
     notifyListeners();
   }

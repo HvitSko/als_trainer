@@ -3,6 +3,7 @@ import 'logic/game_engine.dart';
 import 'models/als_state.dart';
 import 'widgets/inventory/ampularium.dart';
 import 'widgets/inventory/airway_dialog.dart'; // NOWY IMPORT!
+import 'widgets/inventory/diagnostics_dialog.dart';
 
 class AlsTestScreen extends StatefulWidget {
   const AlsTestScreen({super.key});
@@ -245,9 +246,11 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
 
                   const SizedBox(height: 30),
 
-                  // --- FARMAKOLOGIA I DRUGI ODDECHOWE (ZASOBY) ---
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  // --- ZASOBY I DIAGNOSTYKA ---
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.center,
                     children: [
                       ElevatedButton.icon(
                         icon: const Icon(Icons.medical_services),
@@ -269,8 +272,6 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                                 );
                               },
                       ),
-                      const SizedBox(width: 20),
-                      // NOWY PRZYCISK: TORBA ODDECHOWA
                       ElevatedButton.icon(
                         icon: const Icon(Icons.air),
                         label: const Text('Torba Oddechowa'),
@@ -281,6 +282,20 @@ class _AlsTestScreenState extends State<AlsTestScreen> {
                           showDialog(
                             context: context,
                             builder: (context) => AirwayDialog(engine: engine),
+                          );
+                        },
+                      ),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.search),
+                        label: const Text('4H4T & Badanie'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange[900],
+                        ),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) =>
+                                DiagnosticsDialog(engine: engine),
                           );
                         },
                       ),

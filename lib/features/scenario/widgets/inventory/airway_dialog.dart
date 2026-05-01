@@ -11,14 +11,29 @@ class AirwayDialog extends StatefulWidget {
   State<AirwayDialog> createState() => _AirwayDialogState();
 }
 
-class _AirwayDialogState extends State<AirwayDialog> {
+class _AirwayDialogState extends State<AirwayDialog>
+    with SingleTickerProviderStateMixin {
   double _currentO2 = 0;
   int _selectedIGel = 4;
+
+  late AnimationController _blinkController;
 
   @override
   void initState() {
     super.initState();
     _currentO2 = widget.engine.state.oxygenFlow.toDouble();
+
+    // Ustawiamy animację: 500 ms w jedną stronę, potem powrót (pulse)
+    _blinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _blinkController.dispose();
+    super.dispose();
   }
 
   @override
@@ -105,7 +120,7 @@ class _AirwayDialogState extends State<AirwayDialog> {
                             : Colors.grey[800],
                       ),
                       onPressed: () => widget.engine.setupBVM(),
-                      child: const Text('Podłącz BVM (Auto-wentylacja)'),
+                      child: const Text('Podłącz BVM (Auto)'),
                     ),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.air),
@@ -159,7 +174,9 @@ class _AirwayDialogState extends State<AirwayDialog> {
                     const SizedBox(width: 10),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purple[700],
+                        backgroundColor: state.airwayStatus == AirwayType.igel
+                            ? Colors.green
+                            : Colors.purple[700],
                       ),
                       onPressed: () => widget.engine.insertIGel(_selectedIGel),
                       child: const Text('Załóż I-gel'),
@@ -167,21 +184,72 @@ class _AirwayDialogState extends State<AirwayDialog> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: state.intubationAttemptInProgress
-                        ? Colors.yellow[800]
-                        : Colors.red[700],
-                  ),
-                  onPressed: state.intubationAttemptInProgress
-                      ? null
-                      : () => widget.engine.attemptIntubation(),
-                  child: Text(
-                    state.intubationAttemptInProgress
-                        ? 'INTUBOWANIE...'
-                        : 'INTUBACJA DOTCHAWICZA (ETI)',
-                  ),
+
+                // ZMIANA: Twardy audyt "Rurki Schrödingera" (dynamiczny kolor)
+                AnimatedBuilder(
+                  animation: _blinkController,
+                  builder: (context, child) {
+                    Color? etiColor;
+
+                    if (state.intubationAttemptInProgress) {
+                      etiColor = Colors.orange[800]; // W trakcie
+                    } else if (state.airwayStatus == AirwayType.endotracheal) {
+                      if (!state.isIntubationVerified) {
+                        // Niezweryfikowana! Mruga na żółto
+                        etiColor = Color.lerp(
+                          Colors.yellow[800],
+                          Colors.yellow[400],
+                          _blinkController.value,
+                        );
+                      } else {
+                        // Zweryfikowana!
+                        if (state.intubationStatus ==
+                            IntubationStatus.correct) {
+                          etiColor = Colors.green; // Rurka prawidłowa
+                        } else {
+                          // Błędna! Mruga na czerwono
+                          etiColor = Color.lerp(
+                            Colors.red[900],
+                            Colors.redAccent,
+                            _blinkController.value,
+                          );
+                        }
+                      }
+                    } else {
+                      etiColor =
+                          Colors.indigo[600]; // Domyślny kolor przed akcją
+                    }
+
+                    return ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: etiColor,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                      ),
+                      onPressed: state.intubationAttemptInProgress
+                          ? null
+                          : () => widget.engine.attemptIntubation(),
+                      child: Text(
+                        state.intubationAttemptInProgress
+                            ? 'INTUBOWANIE...'
+                            : (state.isIntubationVerified
+                                  ? 'INTUBACJA ETI (Sprawdzona)'
+                                  : 'INTUBACJA ETI'),
+                        style: TextStyle(
+                          color:
+                              (etiColor == Colors.green ||
+                                  etiColor == Colors.indigo[600])
+                              ? Colors.white
+                              : Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    );
+                  },
                 ),
+
                 const Divider(color: Colors.grey),
 
                 const Text(
@@ -208,7 +276,9 @@ class _AirwayDialogState extends State<AirwayDialog> {
                             ? Colors.green
                             : Colors.orange[800],
                       ),
-                      onPressed: () => widget.engine.attachCapnography(),
+                      onPressed: state.isCapnographyAttached
+                          ? null
+                          : () => widget.engine.attachCapnography(),
                     ),
                   ],
                 ),
