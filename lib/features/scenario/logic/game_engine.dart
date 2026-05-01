@@ -2,15 +2,17 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/als_state.dart';
-import '../models/patient_model.dart';
+import '../models/scenario_model.dart';
 
 class GameEngine extends ChangeNotifier {
   AlsScenarioState state = AlsScenarioState();
   Timer? _globalTimer;
 
-  GameEngine() {
-    // Inicjalizacja Głównego Bohatera w momencie startu silnika!
-    state.patient = PatientModel.generateRandomArrest();
+  GameEngine(Scenario scenario) {
+    // Ładujemy pacjenta z dostarczonego scenariusza
+    state.patient = scenario.generatePatient();
+    // Ładujemy początkowy rytm na defibrylator (zanim podłączymy łyżki, defibrylator trzyma to w pamięci, ale UI pokaże "Nieznany")
+    state.monitorRhythm = scenario.initialRhythm;
     _startGlobalTimer();
   }
 
@@ -76,15 +78,22 @@ class GameEngine extends ChangeNotifier {
   // ... (reszta standardowej logiki defibrylatora i leków)
   Future<void> connectMonitor() async {
     if (state.currentPhase != ResuscitationPhase.assessmentABCDE) return;
+
     state.currentPhase = ResuscitationPhase.analyzing;
-    _logEvent("INFO: Podłączono monitor. Trwa analiza rytmu...");
+    _logEvent(
+      "INFO: Zespół nakleja elektrody na klatkę. Trwa analiza rytmu...",
+    );
     notifyListeners();
+
     await Future.delayed(const Duration(seconds: 3));
-    state.monitorRhythm = Random().nextBool()
-        ? PatientRhythm.vf
-        : PatientRhythm.asystole;
+
+    // USUNIĘTO STARE LOSOWANIE RYTMU! (state.monitorRhythm = Random...)
+    // Teraz rytm pochodzi prosto z wgranego Scenariusza!
+
     state.currentPhase = ResuscitationPhase.rhythmCheck;
-    _logEvent("DIAGNOZA: Wykryto ${state.monitorRhythm.name.toUpperCase()}");
+    _logEvent(
+      "DIAGNOZA: Wykryto ${state.monitorRhythm.name.toUpperCase()} na monitorze.",
+    );
     notifyListeners();
   }
 
@@ -198,10 +207,95 @@ class GameEngine extends ChangeNotifier {
 
   void administerDrug(int index) {
     if (index >= state.preparedDrugs.length) return;
-    String drugName = state.preparedDrugs[index].split('|')[0];
-    _logEvent("INFO: Podano lek: $drugName.");
+    String fullDrugInfo = state.preparedDrugs[index];
+    List<String> parts = fullDrugInfo.split('|');
+    String drugName = parts[0];
+    String dose = parts.length > 1 ? parts[1] : "";
+    int currentTime = state.totalElapsedGameTime;
+
     state.preparedDrugs.removeAt(index);
+
+    bool isShockable =
+        state.monitorRhythm == PatientRhythm.vf ||
+        state.monitorRhythm == PatientRhythm.pvt;
+
+    if (drugName == "Adrenalina") {
+      if (dose != "1 mg") {
+        _logEvent(
+          "KRYTYCZNY BŁĄD EBM: Adrenalina w NZK to zawsze 1 mg! Podałeś $dose.",
+        );
+      } else {
+        if (isShockable && state.shocksDelivered < 3) {
+          _logEvent(
+            "BŁĄD EBM: W rytmach do defibrylacji (VF/pVT) Adrenalinę podajemy dopiero PO 3. wyładowaniu!",
+          );
+        } else {
+          _validateAdrenalineTiming(currentTime);
+        }
+      }
+    } else if (drugName == "Amiodaron") {
+      if (!isShockable) {
+        _logEvent(
+          "KRYTYCZNY BŁĄD EBM: Amiodaron w Asystolii/PEA?! To lek antyarytmiczny, nie podajemy go tutaj!",
+        );
+      } else {
+        if (state.shocksDelivered < 3) {
+          _logEvent(
+            "BŁĄD EBM: Amiodaron podajemy dopiero po 3. wyładowaniu (300 mg) i 5. wyładowaniu (150 mg)!",
+          );
+        } else if (state.shocksDelivered >= 3 && state.shocksDelivered < 5) {
+          if (dose == "300 mg") {
+            _logEvent(
+              "SUKCES: Amiodaron 300 mg podany prawidłowo po 3. defibrylacji.",
+            );
+          } else {
+            _logEvent(
+              "BŁĄD EBM: Zła dawka! Po 3. wyładowaniu podajemy 300 mg (podałeś $dose).",
+            );
+          }
+        } else if (state.shocksDelivered >= 5) {
+          if (dose == "150 mg") {
+            _logEvent(
+              "SUKCES: Amiodaron 150 mg podany prawidłowo po 5. defibrylacji.",
+            );
+          } else {
+            _logEvent(
+              "BŁĄD EBM: Zła dawka! Po 5. wyładowaniu podajemy 150 mg (podałeś $dose).",
+            );
+          }
+        }
+      }
+    } else {
+      _logEvent("INFO: Podałeś lek: $drugName $dose.");
+    }
+
     notifyListeners();
+  }
+
+  void _validateAdrenalineTiming(int currentTime) {
+    if (state.lastAdrenalineTime > 0) {
+      int diffSeconds = currentTime - state.lastAdrenalineTime;
+      if (diffSeconds < 180) {
+        // Mniej niż 3 minuty
+        _logEvent(
+          "BŁĄD EBM: Adrenalinę podajemy co 3-5 minut! Podałeś za wcześnie (odstęp: $diffSeconds s). Zwiększasz zapotrzebowanie serca na tlen!",
+        );
+      } else if (diffSeconds > 300) {
+        // Więcej niż 5 minut
+        _logEvent(
+          "OSTRZEŻENIE EBM: Przekroczono okno podaży Adrenaliny! Odstęp wyniósł $diffSeconds s.",
+        );
+        state.lastAdrenalineTime = currentTime;
+      } else {
+        _logEvent(
+          "SUKCES: Adrenalina 1 mg podana w idealnym oknie czasowym (odstęp: $diffSeconds s).",
+        );
+        state.lastAdrenalineTime = currentTime;
+      }
+    } else {
+      _logEvent("SUKCES: Pierwsza dawka Adrenaliny (1 mg) podana prawidłowo.");
+      state.lastAdrenalineTime = currentTime;
+    }
   }
 
   // --- DRZWI DO PŁUC ---
@@ -214,7 +308,15 @@ class GameEngine extends ChangeNotifier {
 
   void setOxygenFlow(int flow) {
     state.oxygenFlow = flow;
-    _logEvent("INFO: Ustawiono przepływ tlenu na $flow l/min.");
+    if (flow > 0 && flow < 15) {
+      _logEvent(
+        "BŁĄD EBM: Przepływ $flow l/min! W NZK do wentylacji BVM wymagane jest min. 15 l/min (100% O2)!",
+      );
+    } else if (flow >= 15) {
+      _logEvent("SUKCES: Ustawiono właściwy przepływ O2: $flow l/min.");
+    } else {
+      _logEvent("INFO: Zakręcono przepływ tlenu.");
+    }
     notifyListeners();
   }
 
@@ -234,19 +336,27 @@ class GameEngine extends ChangeNotifier {
   }
 
   void insertIGel(int size) {
-    if (state.airwayStatus == AirwayType.endotracheal) return;
+    if (state.airwayStatus == AirwayType.endotracheal) {
+      _logEvent("INFO: Pacjent jest już zaintubowany (ETI). Ignoruję I-gel.");
+      return;
+    }
+
     int expectedSize = 4;
     if (state.patient.weight > 90) expectedSize = 5;
     if (state.patient.weight < 50) expectedSize = 3;
 
     if (size != expectedSize) {
+      // KARA: Narzędzie nie zostało poprawnie założone!
       _logEvent(
-        "KRYTYCZNY BŁĄD: Założyłeś I-gel #$size u pacjenta ${state.patient.weight.toStringAsFixed(0)} kg! Narzędzie nieszczelne.",
+        "KRYTYCZNY BŁĄD EBM: Próba założenia I-gel #$size u pacjenta o wadze ${state.patient.weight.toStringAsFixed(0)} kg! Narzędzie jest niedopasowane. Próba nieudana.",
       );
       return;
     }
+
     state.airwayStatus = AirwayType.igel;
-    _logEvent("SUKCES: Założono I-gel #$size.");
+    _logEvent(
+      "SUKCES: Założono I-gel w rozmiarze $size. Prawidłowo dobrany do wagi.",
+    );
     notifyListeners();
   }
 
