@@ -347,7 +347,20 @@ class GameEngine extends ChangeNotifier {
         }
       }
     } else {
-      _logEvent("INFO: Podałeś lek: $drugName $dose (Popitka: $flush).");
+      // Jeśli to nie jest Adrenalina, Amiodaron, ani Nalokson (który ma własną logikę w 4H4T), a pacjent jest w NZK:
+      if (!state.patient.hasPulse &&
+          drugName != "0.9% NaCl (Kroplówka)" &&
+          drugName != "Płyn Wieloelektrolitowy (PWE)") {
+        _logEvent(
+          "OSTRZEŻENIE EBM: Podałeś $drugName w trakcie NZK! Z wyjątkiem specyficznych odtrutek (np. przy 4H4T), podawanie leków nieujętych w algorytmie ALS (innych niż Adrenalina/Amiodaron) nie poprawia przeżywalności, a rozprasza zespół!",
+          isError: true,
+        );
+        state.instructorFeedback.add(
+          "FARMACJA: Podałeś lek '$drugName' pacjentowi bez tętna. To nie jest zgodne z uniwersalnym algorytmem ALS.",
+        );
+      } else {
+        _logEvent("INFO: Podałeś: $drugName $dose (Nośnik: $flush).");
+      }
     }
 
     notifyListeners();

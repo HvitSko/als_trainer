@@ -20,6 +20,24 @@ class FeedbackScreen extends StatelessWidget {
     if (state.totalElapsedGameTime > 0) {
       cprFraction = (state.totalCprSeconds / state.totalElapsedGameTime) * 100;
     }
+    // --- LOGIKA OCENY DRÓG ODDECHOWYCH ---
+    String airwayFeedback = "";
+    Color airwayColor = Colors.grey;
+    if (state.airwayStatus == AirwayType.endotracheal &&
+        state.intubationStatus == IntubationStatus.correct) {
+      airwayFeedback = "Rurka ETI (Złoty Standard! Asynchroniczna wentylacja).";
+      airwayColor = Colors.greenAccent;
+    } else if (state.airwayStatus == AirwayType.igel) {
+      airwayFeedback =
+          "SGA / I-gel (Szybkie i skuteczne, asynchronia możliwa).";
+      airwayColor = Colors.blueAccent;
+    } else if (state.airwayStatus == AirwayType.bvm) {
+      airwayFeedback = "Tylko Worek BVM (Wymagało przerw w RKO 30:2!).";
+      airwayColor = Colors.orangeAccent;
+    } else {
+      airwayFeedback = "BRAK ZABEZPIECZENIA DRÓG!";
+      airwayColor = Colors.redAccent;
+    }
 
     bool isRosc = state.patient.hasPulse;
 
@@ -75,6 +93,30 @@ class FeedbackScreen extends StatelessWidget {
                     Colors.white,
                   ),
                 ],
+              ),
+              const SizedBox(height: 10),
+
+              // NOWY KAFELEK DLA DRÓG ODDECHOWYCH
+              Card(
+                color: Colors.grey[850],
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.air, color: Colors.grey),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "Drogi oddechowe:\n$airwayFeedback",
+                          style: TextStyle(
+                            color: airwayColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
 

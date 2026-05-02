@@ -126,6 +126,50 @@ class _MainGameScreenState extends State<MainGameScreen> {
                     ),
                   ),
                 ),
+                // --- WARSTWA: GLOBALNY TIMER RKO ---
+                if (engine.state.isCprActive)
+                  Positioned(
+                    top: 50, // Pływa na górze ekranu
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red[900]?.withOpacity(0.85),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: Colors.redAccent,
+                              width: 2,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.favorite,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                "RKO: ${engine.state.cprSecondsRemaining} s",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 // --- WARSTWA: TACKA Z LEKAMI (GOTOWE STRZYKAWKI) ---
                 if (engine.state.preparedDrugs.isNotEmpty)
                   Positioned(
