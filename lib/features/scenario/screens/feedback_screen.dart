@@ -26,7 +26,8 @@ class FeedbackScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Padding(
+        // ZMIANA 1: Główny kontener staje się przewijalny jak strona www!
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -59,7 +60,7 @@ class FeedbackScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildStatCard(
-                    "Ułamek RKO (Fraction)",
+                    "Ułamek RKO",
                     "${cprFraction.toStringAsFixed(0)}%",
                     cprFraction >= 60 ? Colors.green : Colors.red,
                   ),
@@ -76,6 +77,22 @@ class FeedbackScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 20),
+
+              // ANALIZA 4H4T
+              const Text(
+                "Prawdziwa Przyczyna (Wg. Sekcji Zwłok / Kardiologa):",
+                style: TextStyle(color: Colors.grey),
+              ),
+              Text(
+                state.patient.hiddenCause.name.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.orangeAccent,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+
               // MĄDROŚCI INSTRUKTORA (Błędy Krytyczne)
               if (state.instructorFeedback.isNotEmpty) ...[
                 const Text(
@@ -149,7 +166,6 @@ class FeedbackScreen extends StatelessWidget {
                               .map(
                                 (err) => Padding(
                                   padding: const EdgeInsets.only(bottom: 6.0),
-                                  // Wycinamy znacznik czasu dla lepszej czytelności w podsumowaniu
                                   child: Text(
                                     "• ${err.substring(err.indexOf(']') + 2)}",
                                     style: const TextStyle(
@@ -225,35 +241,38 @@ class FeedbackScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[900],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: ListView.builder(
-                    itemCount: state.auditLog.length,
-                    itemBuilder: (context, index) {
-                      String log = state.auditLog[index];
-                      Color c = Colors.white70;
-                      if (log.contains("KRYTYCZNY BŁĄD"))
-                        c = Colors.redAccent;
-                      else if (log.contains("BŁĄD EBM") ||
-                          log.contains("OSTRZEŻENIE"))
-                        c = Colors.orangeAccent;
-                      else if (log.contains("SUKCES"))
-                        c = Colors.greenAccent;
+              // ZMIANA 2 i 3: Usunięto Expanded. Dodano shrinkWrap i NeverScrollableScrollPhysics.
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListView.builder(
+                  shrinkWrap:
+                      true, // Zmusza listę do obliczenia swojej całkowitej wysokości
+                  physics:
+                      const NeverScrollableScrollPhysics(), // Wyłącza lokalne przewijanie tej listy
+                  itemCount: state.auditLog.length,
+                  itemBuilder: (context, index) {
+                    String log = state.auditLog[index];
+                    Color c = Colors.white70;
+                    if (log.contains("KRYTYCZNY BŁĄD"))
+                      c = Colors.redAccent;
+                    else if (log.contains("BŁĄD EBM") ||
+                        log.contains("OSTRZEŻENIE"))
+                      c = Colors.orangeAccent;
+                    else if (log.contains("SUKCES"))
+                      c = Colors.greenAccent;
 
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2.0),
-                        child: Text(
-                          log,
-                          style: TextStyle(color: c, fontSize: 12),
-                        ),
-                      );
-                    },
-                  ),
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2.0),
+                      child: Text(
+                        log,
+                        style: TextStyle(color: c, fontSize: 12),
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 20),
