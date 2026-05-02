@@ -37,6 +37,8 @@ class AlsScenarioState {
 
   List<String> preparedDrugs = [];
   bool isPreparingDrug = false;
+  List<String> administeredDrugs =
+      []; // NOWE: Śmietnik zużytych ampułek (historia podaży)
 
   List<String> log = []; // Dziennik widoczny dla gracza
   List<String> auditLog =

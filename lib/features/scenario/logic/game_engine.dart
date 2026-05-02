@@ -233,6 +233,7 @@ class GameEngine extends ChangeNotifier {
     String dose = parts.length > 1 ? parts[1] : "";
     int currentTime = state.totalElapsedGameTime;
 
+    state.administeredDrugs.add(drugName);
     state.preparedDrugs.removeAt(index);
 
     bool isShockable =
@@ -504,35 +505,63 @@ class GameEngine extends ChangeNotifier {
   void evaluate4H4TCause(String cause) {
     bool success = false;
 
-    // Logika sprawdzania, czy rozwiązaliśmy problem (w przyszłości dodamy resztę)
     if (cause == "Hipotermia") {
       if (state.patient.temperature < 35.0 && !state.isWarmingProvided) {
-        success =
-            false; // Błąd: Hipotermia wciąż jest problemem, a my jej nie leczymy!
+        success = false;
         _logEvent(
           "BŁĄD EBM: Oznaczasz Hipotermię jako wykluczoną/wyleczoną, ale pacjent ma ${state.patient.temperature}°C i nie wdrożono ogrzewania!",
           isError: true,
         );
       } else {
-        success = true; // Zabezpieczone!
+        success = true;
         _logEvent(
           "SUKCES EBM: Hipotermia prawidłowo zabezpieczona/wykluczona.",
         );
       }
-    } else if (cause == "Toxins (Zatrucia)") {
-      // Przykład dla toksyn (np. trzeba sprawdzić źrenice)
+    }
+    // --- NOWY BLOK DLA ZATRUĆ (OPIOIDY) ---
+    else if (cause == "Toxins (Zatrucia)") {
       if (state.patient.pupils.contains("Szpilkowate") &&
-          !state.preparedDrugs.contains("Nalokson|Podany")) {
+          !state.administeredDrugs.contains("Nalokson")) {
         success = false;
         _logEvent(
-          "BŁĄD EBM: Zignorowano wąskie źrenice! Brak podaży specyficznego antidotum.",
+          "BŁĄD EBM: Zignorowano wąskie źrenice! Brak podaży specyficznego antidotum (Nalokson).",
+          isError: true,
+        );
+      } else if (state.patient.pupils.contains("Szpilkowate") &&
+          state.administeredDrugs.contains("Nalokson")) {
+        success = true;
+        _logEvent(
+          "SUKCES EBM: Zatrucie opioidami odpowiednio zabezpieczone (podano Nalokson).",
+        );
+      } else {
+        // Inne zatrucia (do rozbudowy) lub pacjent nie ma objawów toksykologicznych
+        success = true;
+        _logEvent("INFO: Przyczyna toksykologiczna wstępnie wykluczona.");
+      }
+    }
+    // --- NOWY BLOK DLA HIPOKSJI ---
+    else if (cause == "Hipoksja") {
+      bool hasAirway =
+          state.airwayStatus == AirwayType.bvm ||
+          state.airwayStatus == AirwayType.igel ||
+          state.airwayStatus == AirwayType.endotracheal;
+      bool hasOxygen = state.oxygenFlow >= 15;
+
+      if (!hasAirway || !hasOxygen) {
+        success = false;
+        _logEvent(
+          "BŁĄD EBM: Jak chcesz leczyć hipoksję?! Pacjent wymaga tlenoterapii (min. 15 l/min) i wsparcia wentylacji (BVM/SGA/ETI)!",
           isError: true,
         );
       } else {
         success = true;
+        _logEvent(
+          "SUKCES EBM: Hipoksja zabezpieczona odpowiednią wentylacją i tlenoterapią (100% O2).",
+        );
       }
     } else {
-      // Dla reszty na razie zakładamy sukces (do rozbudowy)
+      // Dla reszty na razie zakładamy sukces (do rozbudowy w kolejnych DLC)
       success = true;
       _logEvent("INFO: Wykluczono przyczynę: $cause.");
     }
