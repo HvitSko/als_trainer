@@ -30,7 +30,7 @@ class AmpulariumDialog extends StatefulWidget {
 class _AmpulariumDialogState extends State<AmpulariumDialog> {
   DrugInfo? _selectedDrug;
   double _selectedVolume = 0;
-  String _selectedFlush = "Brak (Samoistnie)";
+  String _selectedFlush = "Brak";
 
   final List<DrugInfo> _drugs = [
     DrugInfo("0.9% NaCl (Amp. 5ml)", "5 ml", 1.0, "ml", 5.0, 1.0),
