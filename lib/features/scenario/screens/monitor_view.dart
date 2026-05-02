@@ -30,14 +30,14 @@ class MonitorView extends StatelessWidget {
                     Colors.white,
                   ),
                   _buildMetric(
-                    "RKO Timer",
-                    "${state.cprSecondsRemaining} s",
-                    state.isCprActive
-                        ? Colors.greenAccent
-                        : (state.cprSecondsRemaining == 0
-                              ? Colors.redAccent
-                              : Colors.grey),
-                  ),
+                    "SpO2",
+                    state.isSpO2Attached
+                        ? (state.patient.hasPulse
+                              ? '${state.patient.spO2}%'
+                              : '--%')
+                        : 'Odł.',
+                    Colors.cyanAccent,
+                  ), // ZMIANA!
                   _buildMetric(
                     "ETCO2",
                     state.isCapnographyAttached

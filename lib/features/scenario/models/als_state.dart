@@ -57,12 +57,12 @@ class AlsScenarioState {
   bool isAuscultated = false;
   bool intubationAttemptInProgress = false;
   bool isIntubationVerified = false;
-
   bool isGlucoseMeasured = false;
   bool isTempMeasured = false;
   bool isPhysicalExamDone = false;
-
   bool isWarmingProvided = false; // NOWE: Terapia hipotermii
+  bool isSpO2Attached = false; // NOWE: Czy klips jest na palcu?
+  bool isUsgDone = false; // NOWE: Czy zrobiono Hokus POCUS?
 
   // BRKAUJĄCE OGNIWO: Zbiór przyczyn, które zespół rozważa (krótkie kliknięcie)
   Set<String> considered4H4T = {};

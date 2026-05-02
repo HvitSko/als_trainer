@@ -6,6 +6,7 @@ import 'monitor_view.dart';
 import '../widgets/inventory/ampularium.dart';
 import '../widgets/inventory/airway_dialog.dart';
 import '../widgets/inventory/diagnostics_dialog.dart';
+import '../widgets/inventory/h4t_dialog.dart';
 
 class MainGameScreen extends StatefulWidget {
   final Scenario scenario; // NOWE: Ekran gry żąda scenariusza!
@@ -95,7 +96,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
                       _buildOverlayButton(
                         icon: Icons.medical_services,
                         color: Colors.blue[900]!,
-                        label: "Leki",
+                        label: "Ampularium",
                         onPressed:
                             (engine.state.isPreparingDrug ||
                                 engine.state.preparedDrugs.length >= 2)
@@ -114,24 +115,29 @@ class _MainGameScreenState extends State<MainGameScreen> {
                         icon: Icons.air,
                         color: Colors.cyan[800]!,
                         label: "Oddech",
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AirwayDialog(engine: engine),
-                          );
-                        },
+                        onPressed: () => showDialog(
+                          context: context,
+                          builder: (context) => AirwayDialog(engine: engine),
+                        ),
                       ),
                       _buildOverlayButton(
-                        icon: Icons.search,
+                        icon: Icons.backpack,
                         color: Colors.orange[900]!,
+                        label: "Torba",
+                        onPressed: () => showDialog(
+                          context: context,
+                          builder: (context) =>
+                              DiagnosticsDialog(engine: engine),
+                        ), // W torbie są narzędzia
+                      ),
+                      _buildOverlayButton(
+                        icon: Icons.psychology,
+                        color: Colors.purple[800]!,
                         label: "4H4T",
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) =>
-                                DiagnosticsDialog(engine: engine),
-                          );
-                        },
+                        onPressed: () => showDialog(
+                          context: context,
+                          builder: (context) => H4TDialog(engine: engine),
+                        ), // NOWY WIDŻET
                       ),
                     ],
                   );

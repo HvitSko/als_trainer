@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/als_state.dart';
 import '../models/scenario_model.dart';
+import '../models/patient_model.dart';
 
 class GameEngine extends ChangeNotifier {
   AlsScenarioState state = AlsScenarioState();
@@ -227,10 +228,13 @@ class GameEngine extends ChangeNotifier {
 
   void administerDrug(int index) {
     if (index >= state.preparedDrugs.length) return;
+
+    // Rozszyfrowujemy nasz nowy, zaawansowany format leków z Ampularium
     String fullDrugInfo = state.preparedDrugs[index];
     List<String> parts = fullDrugInfo.split('|');
     String drugName = parts[0];
     String dose = parts.length > 1 ? parts[1] : "";
+    String flush = parts.length > 2 ? parts[2] : "Brak";
     int currentTime = state.totalElapsedGameTime;
 
     state.administeredDrugs.add(drugName);
@@ -244,11 +248,18 @@ class GameEngine extends ChangeNotifier {
       if (dose != "1 mg") {
         _logEvent(
           "KRYTYCZNY BŁĄD EBM: Adrenalina w NZK to zawsze 1 mg! Podałeś $dose.",
+          isError: true,
+        );
+      } else if (flush != "0.9% NaCl") {
+        _logEvent(
+          "BŁĄD EBM: Adrenalinę w NZK trzeba popić bolusem ok. 20ml NaCl, żeby dopchnąć ją do krążenia centralnego! Podałeś z: $flush.",
+          isError: true,
         );
       } else {
         if (isShockable && state.shocksDelivered < 3) {
           _logEvent(
-            "BŁĄD EBM: W rytmach do defibrylacji (VF/pVT) Adrenalinę podajemy dopiero PO 3. wyładowaniu!",
+            "BŁĄD EBM: W rytmach do defibrylacji Adrenalinę podajemy dopiero PO 3. wyładowaniu!",
+            isError: true,
           );
         } else {
           _validateAdrenalineTiming(currentTime);
@@ -257,37 +268,44 @@ class GameEngine extends ChangeNotifier {
     } else if (drugName == "Amiodaron") {
       if (!isShockable) {
         _logEvent(
-          "KRYTYCZNY BŁĄD EBM: Amiodaron w Asystolii/PEA?! To lek antyarytmiczny, nie podajemy go tutaj!",
+          "KRYTYCZNY BŁĄD EBM: Amiodaron w Asystolii/PEA?!",
+          isError: true,
+        );
+      } else if (flush == "0.9% NaCl (Bolus 20ml)") {
+        _logEvent(
+          "KRYTYCZNY BŁĄD EBM: Zmieszałeś Amiodaron z solą fizjologiczną?! Wytrąciły się kryształy! Ten lek podajemy WYŁĄCZNIE z 5% Glukozą!",
+          isError: true,
         );
       } else {
         if (state.shocksDelivered < 3) {
           _logEvent(
-            "BŁĄD EBM: Amiodaron podajemy dopiero po 3. wyładowaniu (300 mg) i 5. wyładowaniu (150 mg)!",
+            "BŁĄD EBM: Amiodaron podajemy dopiero po 3. wyładowaniu (300 mg).",
+            isError: true,
           );
         } else if (state.shocksDelivered >= 3 && state.shocksDelivered < 5) {
-          if (dose == "300 mg") {
+          if (dose == "300 mg")
             _logEvent(
-              "SUKCES: Amiodaron 300 mg podany prawidłowo po 3. defibrylacji.",
+              "SUKCES: Amiodaron 300 mg (z Glukozą 5%) podany prawidłowo.",
             );
-          } else {
+          else
             _logEvent(
-              "BŁĄD EBM: Zła dawka! Po 3. wyładowaniu podajemy 300 mg (podałeś $dose).",
+              "BŁĄD EBM: Zła dawka! Po 3. wyładowaniu podajemy 300 mg.",
+              isError: true,
             );
-          }
         } else if (state.shocksDelivered >= 5) {
-          if (dose == "150 mg") {
+          if (dose == "150 mg")
             _logEvent(
               "SUKCES: Amiodaron 150 mg podany prawidłowo po 5. defibrylacji.",
             );
-          } else {
+          else
             _logEvent(
-              "BŁĄD EBM: Zła dawka! Po 5. wyładowaniu podajemy 150 mg (podałeś $dose).",
+              "BŁĄD EBM: Zła dawka! Po 5. wyładowaniu podajemy 150 mg.",
+              isError: true,
             );
-          }
         }
       }
     } else {
-      _logEvent("INFO: Podałeś lek: $drugName $dose.");
+      _logEvent("INFO: Podałeś lek: $drugName $dose (Popitka: $flush).");
     }
 
     notifyListeners();
@@ -470,6 +488,54 @@ class GameEngine extends ChangeNotifier {
   }
 
   // --- DIAGNOSTYKA I 4H4T ---
+  // W game_engine.dart (sekcja Diagnostyka):
+
+  void attachSpO2() {
+    if (state.isSpO2Attached) return;
+    state.isSpO2Attached = true;
+    _logEvent("AKCJA: Założono pulsoksymetr...");
+    if (!state.patient.hasPulse) {
+      _logEvent(
+        "DIAGNOZA (SpO2): Urządzenie pika, brak krzywej. W NZK pulsoksymetr nie czyta tętna! (SpO2: --%)",
+        isError: true,
+      );
+    } else {
+      _logEvent("DIAGNOZA (SpO2): ${state.patient.spO2}%");
+    }
+    notifyListeners();
+  }
+
+  Future<void> performUSG() async {
+    if (state.isUsgDone) return;
+    state.isUsgDone = true; // ZAPIS W STANIE
+    _logEvent("AKCJA: Głowica przyłożona (Hokus POCUS - eFAST)...");
+    notifyListeners();
+    await Future.delayed(const Duration(seconds: 4));
+
+    if (state.patient.hiddenCause == ReversibleCause.tamponade) {
+      _logEvent(
+        "DIAGNOZA (USG): Potężna przestrzeń płynowa w osierdziu! Serce pływa (TAMPONADA)!",
+        isError: true,
+      );
+    } else if (state.patient.hiddenCause ==
+        ReversibleCause.tensionPneumothorax) {
+      _logEvent(
+        "DIAGNOZA (USG): Brak objawu ślizgania opłucnej! Kod kreskowy w M-Mode! (ODMA PRĘŻNA)!",
+        isError: true,
+      );
+    } else if (state.patient.hiddenCause == ReversibleCause.hypovolemia) {
+      _logEvent(
+        "DIAGNOZA (USG): Żyła główna dolna (IVC) całkowicie zapadnięta. Hipowolemia!",
+        isError: true,
+      );
+    } else {
+      _logEvent(
+        "DIAGNOZA (USG): eFAST ujemny. Brak wolnego płynu, opłucna ślizga się symetrycznie.",
+      );
+    }
+    notifyListeners();
+  }
+
   Future<void> measureGlucose() async {
     if (state.isGlucoseMeasured) return;
     _logEvent("AKCJA: Zespół nakłuwa palec...");
@@ -506,26 +572,67 @@ class GameEngine extends ChangeNotifier {
     bool success = false;
 
     if (cause == "Hipotermia") {
-      if (state.patient.temperature < 35.0 && !state.isWarmingProvided) {
+      if (!state.isTempMeasured) {
         success = false;
         _logEvent(
-          "BŁĄD EBM: Oznaczasz Hipotermię jako wykluczoną/wyleczoną, ale pacjent ma ${state.patient.temperature}°C i nie wdrożono ogrzewania!",
+          "BŁĄD EBM: Chcesz wykluczyć hipotermię 'na oko'?! Zmierz najpierw temperaturę centralną!",
+          isError: true,
+        );
+      } else if (state.patient.temperature < 35.0 && !state.isWarmingProvided) {
+        success = false;
+        _logEvent(
+          "BŁĄD EBM: Oznaczasz Hipotermię jako zabezpieczoną, ale pacjent ma ${state.patient.temperature}°C i nie wdrożono ogrzewania!",
+          isError: true,
+        );
+      } else {
+        success = true;
+        _logEvent("SUKCES EBM: Hipotermia wykluczona lub odpowiednio leczona.");
+      }
+    } else if (cause == "Hipowolemia") {
+      if (!state.isUsgDone && !state.isPhysicalExamDone) {
+        success = false;
+        _logEvent(
+          "BŁĄD EBM: Jak chcesz ocenić wolemię w NZK bez zbadania żył szyjnych (Exposure) lub USG IVC?!",
           isError: true,
         );
       } else {
         success = true;
         _logEvent(
-          "SUKCES EBM: Hipotermia prawidłowo zabezpieczona/wykluczona.",
+          "SUKCES EBM: Hipowolemia zabezpieczona/wykluczona diagnostycznie.",
         );
       }
+    } else if (cause == "Tamponada" || cause == "Thrombosis (Zator)") {
+      if (!state.isUsgDone && !state.isPhysicalExamDone) {
+        success = false;
+        _logEvent(
+          "BŁĄD EBM: $cause bez USG lub oceny wypełnienia żył szyjnych?! Wrzuć głowicę na klatkę (Hokus POCUS) lub zrób badanie urazowe!",
+          isError: true,
+        );
+      } else {
+        success = true;
+        _logEvent(
+          "SUKCES EBM: Przyczyna $cause wykluczona na podstawie USG/Badania fizykalnego.",
+        );
+      }
+    } else if (cause == "Tension pneumothorax (Odma)") {
+      if (!state.isAuscultated && !state.isUsgDone) {
+        success = false;
+        _logEvent(
+          "BŁĄD EBM: Odma?! A gdzie osłuchiwanie klatki lub objaw ślizgania opłucnej w USG?! Strzelasz w ciemno!",
+          isError: true,
+        );
+      } else {
+        success = true;
+        _logEvent("SUKCES EBM: Odma prężna zweryfikowana/wykluczona.");
+      }
     }
-    // --- NOWY BLOK DLA ZATRUĆ (OPIOIDY) ---
+    // ... Stare sekcje dla Toxins i Hipoksji pozostają bez zmian (wklej je tu poniżej)
     else if (cause == "Toxins (Zatrucia)") {
       if (state.patient.pupils.contains("Szpilkowate") &&
           !state.administeredDrugs.contains("Nalokson")) {
         success = false;
         _logEvent(
-          "BŁĄD EBM: Zignorowano wąskie źrenice! Brak podaży specyficznego antidotum (Nalokson).",
+          "BŁĄD EBM: Zignorowano wąskie źrenice! Brak podaży antidotum (Nalokson).",
           isError: true,
         );
       } else if (state.patient.pupils.contains("Szpilkowate") &&
@@ -535,33 +642,26 @@ class GameEngine extends ChangeNotifier {
           "SUKCES EBM: Zatrucie opioidami odpowiednio zabezpieczone (podano Nalokson).",
         );
       } else {
-        // Inne zatrucia (do rozbudowy) lub pacjent nie ma objawów toksykologicznych
         success = true;
         _logEvent("INFO: Przyczyna toksykologiczna wstępnie wykluczona.");
       }
-    }
-    // --- NOWY BLOK DLA HIPOKSJI ---
-    else if (cause == "Hipoksja") {
+    } else if (cause == "Hipoksja") {
       bool hasAirway =
           state.airwayStatus == AirwayType.bvm ||
           state.airwayStatus == AirwayType.igel ||
           state.airwayStatus == AirwayType.endotracheal;
       bool hasOxygen = state.oxygenFlow >= 15;
-
       if (!hasAirway || !hasOxygen) {
         success = false;
         _logEvent(
-          "BŁĄD EBM: Jak chcesz leczyć hipoksję?! Pacjent wymaga tlenoterapii (min. 15 l/min) i wsparcia wentylacji (BVM/SGA/ETI)!",
+          "BŁĄD EBM: Pacjent wymaga tlenoterapii (min. 15 l/min) i wsparcia wentylacji (BVM/SGA/ETI) przed wykluczeniem hipoksji!",
           isError: true,
         );
       } else {
         success = true;
-        _logEvent(
-          "SUKCES EBM: Hipoksja zabezpieczona odpowiednią wentylacją i tlenoterapią (100% O2).",
-        );
+        _logEvent("SUKCES EBM: Hipoksja zabezpieczona wentylacją z 100% O2.");
       }
     } else {
-      // Dla reszty na razie zakładamy sukces (do rozbudowy w kolejnych DLC)
       success = true;
       _logEvent("INFO: Wykluczono przyczynę: $cause.");
     }
