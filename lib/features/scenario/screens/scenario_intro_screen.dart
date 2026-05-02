@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/scenario_database.dart';
 import '../models/scenario_model.dart';
 import 'main_game_screen.dart';
+import '../models/als_state.dart';
 
 class ScenarioIntroScreen extends StatefulWidget {
   const ScenarioIntroScreen({super.key});
@@ -12,11 +13,11 @@ class ScenarioIntroScreen extends StatefulWidget {
 
 class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
   late Scenario _currentScenario;
+  GameMode _selectedMode = GameMode.practice; // NOWA ZMIENNA
 
   @override
   void initState() {
     super.initState();
-    // Losujemy scenariusz przy wejściu do gry
     _currentScenario = ScenarioDatabase.getRandomScenario();
   }
 
@@ -64,25 +65,60 @@ class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
                 ),
 
                 const Spacer(),
+
+                // --- NOWY BLOK WYBORU TRYBU ---
+                const Text(
+                  "WYBIERZ TRYB SYMULACJI:",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SegmentedButton<GameMode>(
+                  style: SegmentedButton.styleFrom(
+                    backgroundColor: Colors.grey[900],
+                    selectedForegroundColor: Colors.white,
+                    selectedBackgroundColor: Colors.blue[800],
+                  ),
+                  segments: const [
+                    ButtonSegment(
+                      value: GameMode.practice,
+                      label: Text("Przećwicz (Instruktor EBM)"),
+                    ),
+                    ButtonSegment(
+                      value: GameMode.test,
+                      label: Text("Sprawdź się (Test/Egzamin)"),
+                    ),
+                  ],
+                  selected: {_selectedMode},
+                  onSelectionChanged: (Set<GameMode> newSelection) {
+                    setState(() => _selectedMode = newSelection.first);
+                  },
+                ),
+                const SizedBox(height: 20),
+
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green[700],
                     padding: const EdgeInsets.symmetric(vertical: 20),
-                    textStyle: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
                   ),
                   onPressed: () {
-                    // Startujemy grę i przekazujemy scenariusz
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
-                        builder: (context) =>
-                            MainGameScreen(scenario: _currentScenario),
+                        // PRZEKAZUJEMY TRYB GRY!
+                        builder: (context) => MainGameScreen(
+                          scenario: _currentScenario,
+                          mode: _selectedMode,
+                        ),
                       ),
                     );
                   },
-                  child: const Text("ROZPOCZNIJ MEDYCZNE CZYNNOŚCI RATUNKOWE"),
+                  child: const Text(
+                    "ROZPOCZNIJ MEDYCZNE CZYNNOŚCI RATUNKOWE",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(height: 20),
               ],

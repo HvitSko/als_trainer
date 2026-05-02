@@ -23,6 +23,9 @@ class AlsScenarioState {
 
   ResuscitationPhase currentPhase = ResuscitationPhase.assessmentABCDE;
   PatientRhythm monitorRhythm = PatientRhythm.unknown;
+  int totalCprSeconds = 0; // Ile łącznie sekund ratownik uciskał
+  int criticalErrorsCount = 0; // Ile razy zabił pacjenta
+  int warningErrorsCount = 0; // Ile razy zlekceważył wytyczne EBM
 
   int totalElapsedGameTime = 0;
   int cprSecondsRemaining = 0;

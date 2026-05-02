@@ -9,11 +9,10 @@ class GameEngine extends ChangeNotifier {
   AlsScenarioState state = AlsScenarioState();
   Timer? _globalTimer;
 
-  GameEngine(Scenario scenario) {
-    // Ładujemy pacjenta z dostarczonego scenariusza
+  GameEngine(Scenario scenario, GameMode mode) {
     state.patient = scenario.generatePatient();
-    // Ładujemy początkowy rytm na defibrylator (zanim podłączymy łyżki, defibrylator trzyma to w pamięci, ale UI pokaże "Nieznany")
     state.monitorRhythm = scenario.initialRhythm;
+    state.mode = mode; // ZAPISUJEMY TRYB!
     _startGlobalTimer();
   }
 
@@ -37,6 +36,7 @@ class GameEngine extends ChangeNotifier {
 
       // LOGIKA PĘTLI RKO
       if (state.isCprActive) {
+        state.totalCprSeconds++; // ŚLEDZIMY CZAS Uciśnięć (Do CPR Fraction)
         if (state.cprSecondsRemaining > 0) {
           state.cprSecondsRemaining--;
         }
@@ -126,7 +126,31 @@ class GameEngine extends ChangeNotifier {
     notifyListeners();
     await Future.delayed(const Duration(seconds: 3));
 
-    // Prosta zmiana rytmu (Markow)
+    // LOGIKA ROSC (Powrót Spontanicznego Krążenia)
+    bool isCauseResolved =
+        state.h4tStatus[state.patient.hiddenCause.name.split('.').last] == 1;
+
+    // Szansa bazowa zależy od tego, czy wykluczono odwracalną przyczynę
+    int roscChance = isCauseResolved ? 60 : 5;
+
+    // Kary za błędy
+    roscChance -= (state.criticalErrorsCount * 15);
+    roscChance -= (state.warningErrorsCount * 5);
+
+    // Jeśli mija 2 cykl, i rzut kostką się udał (ROSC)
+    if (state.cprCyclesCompleted >= 2 && Random().nextInt(100) < roscChance) {
+      state.monitorRhythm =
+          PatientRhythm.pea; // Pokazujemy na monitorze rytm zorganizowany
+      state.patient.hasPulse = true;
+      state.currentPhase = ResuscitationPhase.postResuscitation;
+      _logEvent(
+        "SUKCES: Wykryto powrót fali tętna! ROSC! Zatrzymanie scenariusza.",
+      );
+      notifyListeners();
+      return; // Kończymy! Nasłuchiwacz przeniesie nas na ekran podsumowania.
+    }
+
+    // Jeśli brak ROSC, prosta ewolucja rytmu (VF -> Asystolia itp)
     int rand = Random().nextInt(100);
     if (rand < 20)
       state.monitorRhythm = state.monitorRhythm == PatientRhythm.vf
@@ -698,23 +722,14 @@ class GameEngine extends ChangeNotifier {
   void _logEvent(String message, {bool isError = false}) {
     String formattedMsg =
         "[${_formatTime(state.totalElapsedGameTime)}] $message";
-
-    // Zapisujemy wszystko do logu audytorskiego (który będzie na końcu gry)
     state.auditLog.insert(0, formattedMsg);
 
-    // Jeśli jesteśmy w trybie "Test", ukrywamy podpowiedzi i oceny (EBM)
-    if (state.mode == GameMode.test &&
-        (message.contains("BŁĄD") ||
-            message.contains("SUKCES") ||
-            message.contains("OSTRZEŻENIE"))) {
-      // W trybie Test gracz nie widzi zwrotnej oceny swoich działań w logu!
-      state.log.insert(
-        0,
-        "[${_formatTime(state.totalElapsedGameTime)}] INFO: Zarejestrowano interwencję zespołu.",
-      );
-    } else {
-      // W trybie "Practice" (Przećwicz) widzimy wszystko jak na dłoni
-      state.log.insert(0, formattedMsg);
+    if (isError) {
+      if (message.contains("KRYTYCZNY")) {
+        state.criticalErrorsCount++;
+      } else {
+        state.warningErrorsCount++;
+      }
     }
   }
 

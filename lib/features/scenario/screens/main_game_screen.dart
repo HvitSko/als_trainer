@@ -1,37 +1,57 @@
 import 'package:flutter/material.dart';
 import '../logic/game_engine.dart';
-import '../models/scenario_model.dart'; // NOWY IMPORT
+import '../models/scenario_model.dart';
+import '../models/als_state.dart'; // Dodany import dla GameMode
 import 'patient_view.dart';
 import 'monitor_view.dart';
+import 'feedback_screen.dart'; // ZARAZ GO STWORZYMY
 import '../widgets/inventory/ampularium.dart';
 import '../widgets/inventory/airway_dialog.dart';
 import '../widgets/inventory/diagnostics_dialog.dart';
 import '../widgets/inventory/h4t_dialog.dart';
 
 class MainGameScreen extends StatefulWidget {
-  final Scenario scenario; // NOWE: Ekran gry żąda scenariusza!
+  final Scenario scenario;
+  final GameMode mode; // NOWE
 
-  const MainGameScreen({super.key, required this.scenario});
+  const MainGameScreen({super.key, required this.scenario, required this.mode});
 
   @override
   State<MainGameScreen> createState() => _MainGameScreenState();
 }
 
 class _MainGameScreenState extends State<MainGameScreen> {
-  late GameEngine engine; // ZMIANA na late
+  late GameEngine engine;
   final PageController _pageController = PageController(initialPage: 0);
 
   @override
   void initState() {
     super.initState();
-    // Inicjalizujemy silnik NASZYM scenariuszem
-    engine = GameEngine(widget.scenario);
+    engine = GameEngine(
+      widget.scenario,
+      widget.mode,
+    ); // PRZEKAZUJEMY TRYB DO SILNIKA
+
+    // NASŁUCHUJEMY KOŃCA GRY
+    engine.addListener(_checkGameEnd);
   }
 
-  // ... (reszta kodu dispose() i build() bez zmian)
+  void _checkGameEnd() {
+    if (engine.state.currentPhase == ResuscitationPhase.postResuscitation) {
+      engine.removeListener(_checkGameEnd); // Żeby nie odpalać ekranu 100 razy
+      // Wyrzucamy modalny ekran feedbacku (nie można go zamknąć zwykłym kliknięciem)
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) =>
+              FeedbackScreen(state: engine.state, scenario: widget.scenario),
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
+    engine.removeListener(_checkGameEnd);
     engine.dispose();
     _pageController.dispose();
     super.dispose();
