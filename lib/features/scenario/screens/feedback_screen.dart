@@ -76,21 +76,145 @@ class FeedbackScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 20),
-
-              // ANALIZA 4H4T
-              const Text(
-                "Prawdziwa Przyczyna (Wg. Sekcji Zwłok / Kardiologa):",
-                style: TextStyle(color: Colors.grey),
-              ),
-              Text(
-                state.patient.hiddenCause.name.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.orangeAccent,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              // MĄDROŚCI INSTRUKTORA (Błędy Krytyczne)
+              if (state.instructorFeedback.isNotEmpty) ...[
+                const Text(
+                  "BŁĘDY KRYTYCZNE (ZAGROŻENIE ŻYCIA):",
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red[900]?.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: state.instructorFeedback
+                        .map(
+                          (fb) => Padding(
+                            padding: const EdgeInsets.only(bottom: 6.0),
+                            child: Text(
+                              "• $fb",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // OBSZARY DO POPRAWY (Mniejsze błędy EBM i przeoczenia)
+              Builder(
+                builder: (context) {
+                  List<String> minorErrors = state.auditLog
+                      .where(
+                        (log) =>
+                            (log.contains("BŁĄD EBM") ||
+                                log.contains("OSTRZEŻENIE")) &&
+                            !log.contains("KRYTYCZNY"),
+                      )
+                      .toList();
+                  if (minorErrors.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "OBSZARY DO POPRAWY (Wytyczne EBM):",
+                        style: TextStyle(
+                          color: Colors.orangeAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[900]?.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: minorErrors
+                              .map(
+                                (err) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 6.0),
+                                  // Wycinamy znacznik czasu dla lepszej czytelności w podsumowaniu
+                                  child: Text(
+                                    "• ${err.substring(err.indexOf(']') + 2)}",
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  );
+                },
               ),
-              const SizedBox(height: 20),
+
+              // CO POSZŁO DOBRZE (Sukcesy EBM)
+              Builder(
+                builder: (context) {
+                  List<String> successes = state.auditLog
+                      .where((log) => log.contains("SUKCES EBM"))
+                      .toList();
+                  if (successes.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "CO ZROBIONO DOBRZE:",
+                        style: TextStyle(
+                          color: Colors.greenAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green[900]?.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: successes
+                              .map(
+                                (suc) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 6.0),
+                                  child: Text(
+                                    "• ${suc.substring(suc.indexOf(']') + 2)}",
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  );
+                },
+              ),
 
               // LOG AUDYTORSKI (Pełen)
               const Text(

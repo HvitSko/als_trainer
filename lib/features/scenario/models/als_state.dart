@@ -81,4 +81,9 @@ class AlsScenarioState {
     "Tension pneumothorax (Odma)": 0,
     "Thrombosis (Zator)": 0,
   };
+
+  int secondsWithoutVentilation = 0; // NOWE: Stoper niedotlenienia
+  bool airwayNeglectFlagged = false; // NOWE: Żeby nie spamować błędem 100 razy
+
+  List<String> instructorFeedback = []; // NOWE: Lista mądrości na koniec gry
 }

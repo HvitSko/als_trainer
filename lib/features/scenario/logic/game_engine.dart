@@ -19,6 +19,26 @@ class GameEngine extends ChangeNotifier {
   void _startGlobalTimer() {
     _globalTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       state.totalElapsedGameTime++;
+      // AUDYT WENTYLACJI
+      bool isProperlyVentilated =
+          (state.airwayStatus != AirwayType.none && state.oxygenFlow >= 15);
+      if (!isProperlyVentilated && !state.patient.hasPulse) {
+        state.secondsWithoutVentilation++;
+        if (state.secondsWithoutVentilation > 30 &&
+            !state.airwayNeglectFlagged) {
+          _logEvent(
+            "KRYTYCZNY BŁĄD EBM: Pacjent bez skutecznej wentylacji (O2 + drogi) od ponad 30s! Mózg umiera.",
+            isError: true,
+          );
+          state.instructorFeedback.add(
+            "KRYTYCZNE: Dopuściłeś do głębokiego niedotlenienia. Przez ponad 30 sekund nie prowadziłeś tlenoterapii (min. 15l/min) i udrożnienia dróg.",
+          );
+          state.airwayNeglectFlagged = true;
+        }
+      } else {
+        state.secondsWithoutVentilation =
+            0; // Resetujemy, gdy pacjent dostaje tlen
+      }
 
       // LOGIKA ODSTĘPÓW (HANDS-OFF TIME)
       if (!state.isCprActive &&
@@ -112,13 +132,6 @@ class GameEngine extends ChangeNotifier {
 
   void stopCprAndAssess() async {
     if (!state.isCprActive) return;
-    if (state.cprSecondsRemaining > 10) {
-      _logEvent(
-        "KRYTYCZNY BŁĄD EBM: Przerywasz RKO za wcześnie! Zostało ${state.cprSecondsRemaining}s.",
-      );
-    } else {
-      _logEvent("SUKCES: Cykl 2-minutowy zaliczony pomyślnie.");
-    }
     state.isCprActive = false;
     state.cprCyclesCompleted++;
     state.currentPhase = ResuscitationPhase.analyzing;
@@ -126,31 +139,30 @@ class GameEngine extends ChangeNotifier {
     notifyListeners();
     await Future.delayed(const Duration(seconds: 3));
 
-    // LOGIKA ROSC (Powrót Spontanicznego Krążenia)
-    bool isCauseResolved =
-        state.h4tStatus[state.patient.hiddenCause.name.split('.').last] == 1;
+    // NAPRAWIONY ROSC!
+    String causeKey = _mapCauseToKey(state.patient.hiddenCause);
+    bool isCauseResolved = state.h4tStatus[causeKey] == 1;
 
-    // Szansa bazowa zależy od tego, czy wykluczono odwracalną przyczynę
-    int roscChance = isCauseResolved ? 60 : 5;
+    int roscChance = isCauseResolved
+        ? 70
+        : 5; // Jeśli wyleczysz przyczynę, masz 70% szans!
+    roscChance -=
+        (state.criticalErrorsCount * 10); // Kary za morderstwa po drodze
 
-    // Kary za błędy
-    roscChance -= (state.criticalErrorsCount * 15);
-    roscChance -= (state.warningErrorsCount * 5);
-
-    // Jeśli mija 2 cykl, i rzut kostką się udał (ROSC)
     if (state.cprCyclesCompleted >= 2 && Random().nextInt(100) < roscChance) {
-      state.monitorRhythm =
-          PatientRhythm.pea; // Pokazujemy na monitorze rytm zorganizowany
+      state.monitorRhythm = PatientRhythm.pea;
       state.patient.hasPulse = true;
       state.currentPhase = ResuscitationPhase.postResuscitation;
       _logEvent(
         "SUKCES: Wykryto powrót fali tętna! ROSC! Zatrzymanie scenariusza.",
       );
+      state.instructorFeedback.add(
+        "SUKCES: Poprawnie zdiagnozowałeś i wyeliminowałeś przyczynę ($causeKey), co doprowadziło do powrotu krążenia (ROSC).",
+      );
       notifyListeners();
-      return; // Kończymy! Nasłuchiwacz przeniesie nas na ekran podsumowania.
+      return;
     }
 
-    // Jeśli brak ROSC, prosta ewolucja rytmu (VF -> Asystolia itp)
     int rand = Random().nextInt(100);
     if (rand < 20)
       state.monitorRhythm = state.monitorRhythm == PatientRhythm.vf
@@ -588,13 +600,19 @@ class GameEngine extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> performPhysicalExam() async {
+  void performPhysicalExam() {
     if (state.isPhysicalExamDone) return;
-    _logEvent("AKCJA: Szybkie badanie urazowe (Exposure)...");
-    notifyListeners();
-    await Future.delayed(const Duration(seconds: 4));
+
     state.isPhysicalExamDone = true;
-    _logEvent("DIAGNOZA (Badanie): Żyły szyjne zapadnięte. Źrenice szerokie.");
+    _logEvent(
+      "AKCJA: Wykonano szybkie badanie urazowe i ocenę neurologiczną (Exposure / ABCDE).",
+    );
+
+    // ZMIANA: Silnik zaczytuje parametry prosto z wygenerowanego modelu pacjenta!
+    _logEvent(
+      "DIAGNOZA (Fizykalne): Skóra: ${state.patient.skinCondition}. Klatka: ${state.patient.chestMovement}. Źrenice: ${state.patient.pupils}.",
+    );
+
     notifyListeners();
   }
 
@@ -725,12 +743,20 @@ class GameEngine extends ChangeNotifier {
     state.auditLog.insert(0, formattedMsg);
 
     if (isError) {
-      if (message.contains("KRYTYCZNY")) {
+      if (message.contains("KRYTYCZNY"))
         state.criticalErrorsCount++;
-      } else {
+      else
         state.warningErrorsCount++;
-      }
     }
+
+    // W trybie TEST ukrywamy KRYTYCZNE, SUKCESY i BŁĘDY. Pokazujemy tylko diagnostykę.
+    if (state.mode == GameMode.test &&
+        (isError || message.contains("SUKCES") || message.contains("BŁĄD"))) {
+      // Cisza w eterze, egzaminator tylko notuje!
+    } else {
+      state.log.insert(0, formattedMsg); // W trybie Practice leci wszystko
+    }
+    notifyListeners();
   }
 
   String _formatTime(int seconds) {
@@ -743,5 +769,28 @@ class GameEngine extends ChangeNotifier {
   void dispose() {
     _globalTimer?.cancel();
     super.dispose();
+  }
+
+  String _mapCauseToKey(ReversibleCause cause) {
+    switch (cause) {
+      case ReversibleCause.hypoxia:
+        return "Hipoksja";
+      case ReversibleCause.hypovolemia:
+        return "Hipowolemia";
+      case ReversibleCause.hypoHyperkalemia:
+        return "Hipo/Hiperkaliemia";
+      case ReversibleCause.hypothermia:
+        return "Hipotermia";
+      case ReversibleCause.tamponade:
+        return "Tamponada";
+      case ReversibleCause.toxins:
+        return "Toxins (Zatrucia)";
+      case ReversibleCause.tensionPneumothorax:
+        return "Tension pneumothorax (Odma)";
+      case ReversibleCause.thrombosis:
+        return "Thrombosis (Zator)";
+      default:
+        return "";
+    }
   }
 }
