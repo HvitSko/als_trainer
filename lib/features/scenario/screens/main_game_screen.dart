@@ -55,7 +55,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
 
             // --- WARSTWA 2: WSKAŹNIK EKRANU ---
             Positioned(
-              top: 10,
+              bottom: 110,
               left: 0,
               right: 0,
               child: IgnorePointer(

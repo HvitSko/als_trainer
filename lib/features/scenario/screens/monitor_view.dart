@@ -30,6 +30,15 @@ class MonitorView extends StatelessWidget {
                     Colors.white,
                   ),
                   _buildMetric(
+                    "RKO",
+                    "${state.cprSecondsRemaining} s",
+                    state.isCprActive
+                        ? Colors.greenAccent
+                        : (state.cprSecondsRemaining == 0
+                              ? Colors.redAccent
+                              : Colors.grey),
+                  ), // POWRÓT SYNA MARNOTRAWNEGO
+                  _buildMetric(
                     "SpO2",
                     state.isSpO2Attached
                         ? (state.patient.hasPulse
@@ -37,7 +46,7 @@ class MonitorView extends StatelessWidget {
                               : '--%')
                         : 'Odł.',
                     Colors.cyanAccent,
-                  ), // ZMIANA!
+                  ),
                   _buildMetric(
                     "ETCO2",
                     state.isCapnographyAttached
@@ -297,7 +306,7 @@ class MonitorView extends StatelessWidget {
         Text(
           value,
           style: TextStyle(
-            fontSize: 32,
+            fontSize: 24,
             fontWeight: FontWeight.bold,
             color: color,
           ),

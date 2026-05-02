@@ -39,10 +39,16 @@ class GameEngine extends ChangeNotifier {
       if (state.isCprActive) {
         if (state.cprSecondsRemaining > 0) {
           state.cprSecondsRemaining--;
-        } else if (state.cprSecondsRemaining == 0) {
-          if (state.totalElapsedGameTime % 5 == 0) {
+        }
+
+        // Zabezpieczenie przed spamem: logujemy powiadomienie tylko raz, dokładnie w sekundzie '0',
+        // a potem np. przypominamy co 15 sekund (żeby gracz nie zapomniał przerwać uciśnięć).
+        if (state.cprSecondsRemaining == 0) {
+          if (state.totalElapsedGameTime % 15 == 0) {
+            // Spamuje co 15 sekund zamiast co sekundę
             _logEvent(
-              "INFO: Minęły 2 minuty RKO! ZATRZYMAJ uciśnięcia, aby ocenić rytm!",
+              "OSTRZEŻENIE: Czas cyklu RKO minął! ZATRZYMAJ uciśnięcia, aby ocenić rytm!",
+              isError: true,
             );
           }
         }
