@@ -629,6 +629,54 @@ class GameEngine extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- NOWY SYSTEM: INTERAKTYWNE BADANIE (DRAG & DROP) ---
+  String performTargetedExam(String tool, String target) {
+    state.isPhysicalExamDone =
+        true; // Zaznaczamy, że w ogóle dotykaliśmy pacjenta
+
+    if (tool == "Latarka" && target == "Oczy") {
+      _logEvent(
+        "BADANIE: Oceniono źrenice (Latarka). Wynik: ${state.patient.pupils}.",
+      );
+      notifyListeners();
+      return "Źrenice: ${state.patient.pupils}";
+    } else if (tool == "Stetoskop" && target == "Klatka") {
+      state.isAuscultated = true; // Zabezpieczenie dla 4H4T (Odma)!
+
+      String sounds = "Brak szmerów (Klatka nieruchoma)";
+      // Logika EBM: Szmery zależne od rurki!
+      if (state.airwayStatus == AirwayType.endotracheal) {
+        if (state.intubationStatus == IntubationStatus.esophageal)
+          sounds = "Bulgotanie w żołądku! (Rurka w przełyku)";
+        else if (state.intubationStatus == IntubationStatus.rightMainstem)
+          sounds = "Szmer tylko po PRAWEJ stronie! (Za głęboko)";
+        else
+          sounds = "Symetryczny szmer pęcherzykowy";
+      } else if (state.airwayStatus == AirwayType.igel ||
+          state.airwayStatus == AirwayType.bvm) {
+        sounds = "Symetryczny szmer pęcherzykowy (Wentylacja wymuszona)";
+      }
+
+      _logEvent("BADANIE: Osłuchiwanie klatki piersiowej. Wynik: $sounds.");
+      notifyListeners();
+      return "Osłuchiwanie:\n$sounds";
+    } else if (tool == "Termometr" && target == "Głowa") {
+      state.isTempMeasured = true;
+      _logEvent(
+        "BADANIE: Zmierzono temperaturę w błonie bębenkowej: ${state.patient.temperature}°C.",
+      );
+      notifyListeners();
+      return "Temperatura: ${state.patient.temperature}°C";
+    }
+
+    // Jeśli gracz zrobi głupotę (np. latarka na klatkę)
+    _logEvent(
+      "AKCJA: Próba użycia $tool na $target. Brak użytecznych wniosków diagnostycznych.",
+      isError: true,
+    );
+    return "Brak reakcji / Niewłaściwe użycie sprzętu";
+  }
+
   void evaluate4H4TCause(String cause) {
     bool success = false;
 
