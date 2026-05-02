@@ -14,11 +14,13 @@ enum AirwayType { none, basic, bvm, igel, endotracheal }
 
 enum IntubationStatus { none, esophageal, rightMainstem, correct }
 
+enum GameMode { practice, test } // NOWE: Tryb gry
+
 class AlsScenarioState {
-  // GŁÓWNY BOHATER
   late PatientModel patient;
 
-  // STAN SCENARIUSZA
+  GameMode mode = GameMode.practice; // Domyślnie tryb z podpowiedziami
+
   ResuscitationPhase currentPhase = ResuscitationPhase.assessmentABCDE;
   PatientRhythm monitorRhythm = PatientRhythm.unknown;
 
@@ -35,14 +37,16 @@ class AlsScenarioState {
 
   List<String> preparedDrugs = [];
   bool isPreparingDrug = false;
-  List<String> log = [];
+
+  List<String> log = []; // Dziennik widoczny dla gracza
+  List<String> auditLog =
+      []; // NOWE: Ukryty Dziennik Audytora (do podsumowania na koniec!)
 
   int cprCyclesCompleted = 0;
   int lastAdrenalineTime = -999;
   int lastAmiodaroneTime = -999;
   int cprInactiveSeconds = 0;
 
-  // --- DRZWI DO PŁUC (Narzędzia i akcje - nie fizjologia!) ---
   AirwayType airwayStatus = AirwayType.none;
   IntubationStatus intubationStatus = IntubationStatus.none;
   int oxygenFlow = 0;
@@ -52,9 +56,24 @@ class AlsScenarioState {
   bool intubationAttemptInProgress = false;
   bool isIntubationVerified = false;
 
-  // --- DIAGNOSTYKA (Flagi akcji Zespołu) ---
   bool isGlucoseMeasured = false;
   bool isTempMeasured = false;
   bool isPhysicalExamDone = false;
+
+  bool isWarmingProvided = false; // NOWE: Terapia hipotermii
+
+  // BRKAUJĄCE OGNIWO: Zbiór przyczyn, które zespół rozważa (krótkie kliknięcie)
   Set<String> considered4H4T = {};
+
+  // Statusy 4H4T (0 - neutralny, 1 - wyleczone/wykluczone (zielony), -1 - błąd (czerwony))
+  Map<String, int> h4tStatus = {
+    "Hipoksja": 0,
+    "Hipowolemia": 0,
+    "Hipo/Hiperkaliemia": 0,
+    "Hipotermia": 0,
+    "Tamponada": 0,
+    "Toxins (Zatrucia)": 0,
+    "Tension pneumothorax (Odma)": 0,
+    "Thrombosis (Zator)": 0,
+  };
 }

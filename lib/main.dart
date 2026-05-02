@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'features/scenario/screens/main_game_screen.dart';
+import 'features/scenario/screens/scenario_intro_screen.dart';
 
 void main() {
   runApp(const AlsGameApp());
@@ -15,7 +15,7 @@ class AlsGameApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       // Ustawiamy ciemny motyw, bo monitory medyczne świecą w ciemności
       theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: Colors.black),
-      home: const MainGameScreen(),
+      home: const ScenarioIntroScreen(),
     );
   }
 }

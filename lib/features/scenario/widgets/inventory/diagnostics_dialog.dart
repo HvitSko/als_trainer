@@ -52,6 +52,22 @@ class _DiagnosticsDialogState extends State<DiagnosticsDialog> {
                   runSpacing: 10,
                   children: [
                     ElevatedButton.icon(
+                      icon: const Icon(Icons.ac_unit),
+                      label: Text(
+                        state.isWarmingProvided
+                            ? 'Ogrzewanie włączone'
+                            : 'Zapewnij Komfort Termiczny (Ogrzewaj)',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: state.isWarmingProvided
+                            ? Colors.green
+                            : Colors.blueGrey,
+                      ),
+                      onPressed: state.isWarmingProvided
+                          ? null
+                          : () => widget.engine.provideThermalComfort(),
+                    ),
+                    ElevatedButton.icon(
                       icon: const Icon(Icons.bloodtype),
                       label: Text(
                         state.isGlucoseMeasured
@@ -115,20 +131,25 @@ class _DiagnosticsDialogState extends State<DiagnosticsDialog> {
                   spacing: 8,
                   runSpacing: 8,
                   children: hCauses.map((cause) {
-                    bool considered = state.considered4H4T.contains(cause);
-                    return ActionChip(
-                      label: Text(
-                        cause,
-                        style: TextStyle(
-                          color: considered ? Colors.black : Colors.white,
+                    int status = state.h4tStatus[cause] ?? 0;
+                    Color bgColor = Colors.grey[800]!;
+                    if (status == 1) bgColor = Colors.green[800]!;
+                    if (status == -1)
+                      bgColor = Colors
+                          .redAccent; // Tutaj mrugałoby na czerwono (na razie dajemy statyczny czerwony)
+
+                    return GestureDetector(
+                      onLongPress: () => _showEvaluationDialog(context, cause),
+                      child: ActionChip(
+                        label: Text(
+                          cause,
+                          style: const TextStyle(color: Colors.white),
                         ),
+                        backgroundColor: bgColor,
+                        onPressed: () => widget.engine.considerCause(
+                          cause,
+                        ), // Krótkie kliknięcie = Zespół rozważa
                       ),
-                      backgroundColor: considered
-                          ? Colors.cyanAccent
-                          : Colors.grey[800],
-                      onPressed: considered
-                          ? null
-                          : () => widget.engine.considerCause(cause),
                     );
                   }).toList(),
                 ),
@@ -144,20 +165,25 @@ class _DiagnosticsDialogState extends State<DiagnosticsDialog> {
                   spacing: 8,
                   runSpacing: 8,
                   children: tCauses.map((cause) {
-                    bool considered = state.considered4H4T.contains(cause);
-                    return ActionChip(
-                      label: Text(
-                        cause,
-                        style: TextStyle(
-                          color: considered ? Colors.black : Colors.white,
+                    int status = state.h4tStatus[cause] ?? 0;
+                    Color bgColor = Colors.grey[800]!;
+                    if (status == 1) bgColor = Colors.green[800]!;
+                    if (status == -1)
+                      bgColor = Colors
+                          .redAccent; // Tutaj mrugałoby na czerwono (na razie dajemy statyczny czerwony)
+
+                    return GestureDetector(
+                      onLongPress: () => _showEvaluationDialog(context, cause),
+                      child: ActionChip(
+                        label: Text(
+                          cause,
+                          style: const TextStyle(color: Colors.white),
                         ),
+                        backgroundColor: bgColor,
+                        onPressed: () => widget.engine.considerCause(
+                          cause,
+                        ), // Krótkie kliknięcie = Zespół rozważa
                       ),
-                      backgroundColor: considered
-                          ? Colors.redAccent
-                          : Colors.grey[800],
-                      onPressed: considered
-                          ? null
-                          : () => widget.engine.considerCause(cause),
                     );
                   }).toList(),
                 ),
@@ -175,6 +201,37 @@ class _DiagnosticsDialogState extends State<DiagnosticsDialog> {
           ],
         );
       },
+    );
+  }
+
+  void _showEvaluationDialog(BuildContext context, String cause) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text(
+          "Ocena: $cause",
+          style: const TextStyle(color: Colors.orangeAccent),
+        ),
+        content: const Text(
+          "Czy uważasz, że podjąłeś działania adekwatne do parametrów pacjenta i możemy odhaczyć ten problem?",
+          style: TextStyle(color: Colors.white),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("NIE, jeszcze nie"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            onPressed: () {
+              Navigator.pop(ctx);
+              widget.engine.evaluate4H4TCause(cause);
+            },
+            child: const Text("TAK, Wykluczone/Zabezpieczone"),
+          ),
+        ],
+      ),
     );
   }
 }

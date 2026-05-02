@@ -47,15 +47,21 @@ class GameEngine extends ChangeNotifier {
         }
       }
 
-      // FIZJOLOGIA: KAPNOGRAFIA (ETCO2) idzie prosto do modelu pacjenta!
+      // FIZJOLOGIA: KAPNOGRAFIA (ETCO2)
       if (state.isCapnographyAttached) {
         if (state.intubationStatus == IntubationStatus.esophageal) {
           state.patient.etCo2 = 0;
         } else if (state.airwayStatus != AirwayType.none &&
             state.airwayStatus != AirwayType.basic) {
           if (state.isCprActive) {
-            state.patient.etCo2 =
-                10 + Random().nextInt(11); // 10-20 mmHg przy RKO
+            // ZMIANA: Jeśli tlen < 15, jakość wentylacji jest dramatyczna, co sztucznie zaniża parametry w naszej symulacji
+            if (state.oxygenFlow < 15) {
+              state.patient.etCo2 =
+                  5 + Random().nextInt(6); // 5-10 mmHg (Bardzo źle)
+            } else {
+              state.patient.etCo2 =
+                  12 + Random().nextInt(11); // 12-22 mmHg (Prawidłowo przy RKO)
+            }
           } else {
             state.patient.etCo2 = state.patient.etCo2 > 2
                 ? state.patient.etCo2 - 2
@@ -172,7 +178,20 @@ class GameEngine extends ChangeNotifier {
         (state.isCprActive && state.cprSecondsRemaining > 110);
 
     if (!isValidShockTiming)
-      _logEvent("KRYTYCZNY BŁĄD EBM: Wyładowanie w połowie cyklu!");
+      _logEvent(
+        "KRYTYCZNY BŁĄD EBM: Wyładowanie w połowie cyklu!",
+        isError: true,
+      );
+
+    // ZMIANA: Audyt eskalacji prądu
+    if (!isFirstShock &&
+        state.chargedEnergy <= state.lastShockEnergy &&
+        state.chargedEnergy < 360) {
+      _logEvent(
+        "OSTRZEŻENIE EBM: ERC zaleca eskalację energii przy kolejnych wyładowaniach (np. 150J -> 200J -> 300J -> 360J).",
+        isError: true,
+      );
+    }
 
     if (state.monitorRhythm == PatientRhythm.vf ||
         state.monitorRhythm == PatientRhythm.pvt) {
@@ -187,6 +206,7 @@ class GameEngine extends ChangeNotifier {
     } else {
       _logEvent(
         "KRYTYCZNY BŁĄD: Wyładowanie ${state.chargedEnergy}J w rytmie ${state.monitorRhythm.name.toUpperCase()}!",
+        isError: true,
       );
     }
     state.isDefibCharged = false;
@@ -384,6 +404,38 @@ class GameEngine extends ChangeNotifier {
     notifyListeners();
   }
 
+  void startIntubationMinigame() {
+    if (state.intubationAttemptInProgress) return;
+    if (!state.isPreoxygenated) {
+      _logEvent(
+        "KRYTYCZNY BŁĄD EBM: Brak preoksygenacji przed ETI!",
+        isError: true,
+      );
+    }
+    state.intubationAttemptInProgress = true;
+    _logEvent("AKCJA: Rozpoczęto wprowadzanie laryngoskopu (Minigra ETI).");
+    notifyListeners();
+  }
+
+  void finishIntubationMinigame(bool hitTrachea, bool correctDepth) {
+    if (!hitTrachea) {
+      state.intubationStatus = IntubationStatus.esophageal; // Przełyk
+    } else if (!correctDepth) {
+      state.intubationStatus =
+          IntubationStatus.rightMainstem; // Za głęboko (prawe oskrzele)
+    } else {
+      state.intubationStatus = IntubationStatus.correct; // Perfekt
+    }
+
+    state.airwayStatus = AirwayType.endotracheal;
+    state.intubationAttemptInProgress = false;
+    state.isIntubationVerified = false;
+    _logEvent(
+      "INFO: Rurka wprowadzona. ŚLEPA INTUBACJA. Natychmiast zweryfikuj jej położenie!",
+    );
+    notifyListeners();
+  }
+
   void auscultate() {
     if (state.airwayStatus == AirwayType.none ||
         state.airwayStatus == AirwayType.basic)
@@ -449,6 +501,54 @@ class GameEngine extends ChangeNotifier {
     notifyListeners();
   }
 
+  void evaluate4H4TCause(String cause) {
+    bool success = false;
+
+    // Logika sprawdzania, czy rozwiązaliśmy problem (w przyszłości dodamy resztę)
+    if (cause == "Hipotermia") {
+      if (state.patient.temperature < 35.0 && !state.isWarmingProvided) {
+        success =
+            false; // Błąd: Hipotermia wciąż jest problemem, a my jej nie leczymy!
+        _logEvent(
+          "BŁĄD EBM: Oznaczasz Hipotermię jako wykluczoną/wyleczoną, ale pacjent ma ${state.patient.temperature}°C i nie wdrożono ogrzewania!",
+          isError: true,
+        );
+      } else {
+        success = true; // Zabezpieczone!
+        _logEvent(
+          "SUKCES EBM: Hipotermia prawidłowo zabezpieczona/wykluczona.",
+        );
+      }
+    } else if (cause == "Toxins (Zatrucia)") {
+      // Przykład dla toksyn (np. trzeba sprawdzić źrenice)
+      if (state.patient.pupils.contains("Szpilkowate") &&
+          !state.preparedDrugs.contains("Nalokson|Podany")) {
+        success = false;
+        _logEvent(
+          "BŁĄD EBM: Zignorowano wąskie źrenice! Brak podaży specyficznego antidotum.",
+          isError: true,
+        );
+      } else {
+        success = true;
+      }
+    } else {
+      // Dla reszty na razie zakładamy sukces (do rozbudowy)
+      success = true;
+      _logEvent("INFO: Wykluczono przyczynę: $cause.");
+    }
+
+    state.h4tStatus[cause] = success ? 1 : -1;
+    notifyListeners();
+  }
+
+  void provideThermalComfort() {
+    state.isWarmingProvided = true;
+    _logEvent(
+      "AKCJA: Rozpoczęto aktywne ogrzewanie pacjenta / zapewniono komfort termiczny.",
+    );
+    notifyListeners();
+  }
+
   void considerCause(String cause) {
     if (state.considered4H4T.contains(cause)) return;
     state.considered4H4T.add(cause);
@@ -456,11 +556,27 @@ class GameEngine extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _logEvent(String message) {
-    state.log.insert(
-      0,
-      "[${_formatTime(state.totalElapsedGameTime)}] $message",
-    );
+  void _logEvent(String message, {bool isError = false}) {
+    String formattedMsg =
+        "[${_formatTime(state.totalElapsedGameTime)}] $message";
+
+    // Zapisujemy wszystko do logu audytorskiego (który będzie na końcu gry)
+    state.auditLog.insert(0, formattedMsg);
+
+    // Jeśli jesteśmy w trybie "Test", ukrywamy podpowiedzi i oceny (EBM)
+    if (state.mode == GameMode.test &&
+        (message.contains("BŁĄD") ||
+            message.contains("SUKCES") ||
+            message.contains("OSTRZEŻENIE"))) {
+      // W trybie Test gracz nie widzi zwrotnej oceny swoich działań w logu!
+      state.log.insert(
+        0,
+        "[${_formatTime(state.totalElapsedGameTime)}] INFO: Zarejestrowano interwencję zespołu.",
+      );
+    } else {
+      // W trybie "Practice" (Przećwicz) widzimy wszystko jak na dłoni
+      state.log.insert(0, formattedMsg);
+    }
   }
 
   String _formatTime(int seconds) {

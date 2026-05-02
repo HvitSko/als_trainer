@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../logic/game_engine.dart';
 import '../../models/als_state.dart';
+import 'intubation_minigame_dialog.dart';
 
 class AirwayDialog extends StatefulWidget {
   final GameEngine engine;
@@ -228,9 +229,21 @@ class _AirwayDialogState extends State<AirwayDialog>
                           vertical: 12,
                         ),
                       ),
+                      // Podmień w airway_dialog.dart onPressed dla ETI na to:
                       onPressed: state.intubationAttemptInProgress
                           ? null
-                          : () => widget.engine.attemptIntubation(),
+                          : () {
+                              widget.engine.startIntubationMinigame();
+                              Navigator.of(context).pop(); // Zamknij okno dróg
+                              showDialog(
+                                // Otwórz minigrę
+                                context: context,
+                                barrierDismissible: false, // Nie można uciec!
+                                builder: (context) => IntubationMinigameDialog(
+                                  engine: widget.engine,
+                                ),
+                              );
+                            },
                       child: Text(
                         state.intubationAttemptInProgress
                             ? 'INTUBOWANIE...'

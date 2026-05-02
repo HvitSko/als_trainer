@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../logic/game_engine.dart';
+import '../models/scenario_model.dart'; // NOWY IMPORT
 import 'patient_view.dart';
 import 'monitor_view.dart';
 import '../widgets/inventory/ampularium.dart';
@@ -7,15 +8,26 @@ import '../widgets/inventory/airway_dialog.dart';
 import '../widgets/inventory/diagnostics_dialog.dart';
 
 class MainGameScreen extends StatefulWidget {
-  const MainGameScreen({super.key});
+  final Scenario scenario; // NOWE: Ekran gry żąda scenariusza!
+
+  const MainGameScreen({super.key, required this.scenario});
 
   @override
   State<MainGameScreen> createState() => _MainGameScreenState();
 }
 
 class _MainGameScreenState extends State<MainGameScreen> {
-  final GameEngine engine = GameEngine();
+  late GameEngine engine; // ZMIANA na late
   final PageController _pageController = PageController(initialPage: 0);
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicjalizujemy silnik NASZYM scenariuszem
+    engine = GameEngine(widget.scenario);
+  }
+
+  // ... (reszta kodu dispose() i build() bez zmian)
 
   @override
   void dispose() {
@@ -50,15 +62,18 @@ class _MainGameScreenState extends State<MainGameScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // ignore: deprecated_member_use
                     Icon(Icons.person, color: Colors.white.withOpacity(0.5)),
                     const SizedBox(width: 8),
                     Text(
                       "< Przesuń >",
+                      // ignore: deprecated_member_use
                       style: TextStyle(color: Colors.white.withOpacity(0.5)),
                     ),
                     const SizedBox(width: 8),
                     Icon(
                       Icons.monitor_heart,
+                      // ignore: deprecated_member_use
                       color: Colors.white.withOpacity(0.5),
                     ),
                   ],
@@ -132,6 +147,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
                 animation: engine,
                 builder: (context, _) {
                   if (engine.state.preparedDrugs.isEmpty)
+                    // ignore: curly_braces_in_flow_control_structures
                     return const SizedBox.shrink();
                   return Container(
                     padding: const EdgeInsets.all(8),

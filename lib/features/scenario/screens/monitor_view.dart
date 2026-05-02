@@ -55,26 +55,43 @@ class MonitorView extends StatelessWidget {
                 style: const TextStyle(fontSize: 16, color: Colors.blue),
               ),
               const SizedBox(height: 10),
+              // --- EKG I STAN ---
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 decoration: BoxDecoration(
-                  // ignore: deprecated_member_use
-                  color: Colors.green[900]?.withOpacity(0.3),
+                  color: Colors.green[900]?.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
-                  child: Text(
-                    state.currentPhase == ResuscitationPhase.analyzing
-                        ? 'ANALIZA EKG...'
-                        : 'EKG: ${state.monitorRhythm.name.toUpperCase()}',
-                    style: TextStyle(
-                      fontSize: 36,
-                      color: state.currentPhase == ResuscitationPhase.analyzing
-                          ? Colors.yellow
-                          : Colors.greenAccent,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Builder(
+                    builder: (context) {
+                      String ekgText;
+                      Color ekgColor;
+
+                      if (state.currentPhase ==
+                          ResuscitationPhase.assessmentABCDE) {
+                        ekgText = 'BRAK SYGNAŁU (PODŁĄCZ MONITOR)';
+                        ekgColor = Colors.grey;
+                      } else if (state.currentPhase ==
+                          ResuscitationPhase.analyzing) {
+                        ekgText = 'ANALIZA EKG...';
+                        ekgColor = Colors.yellow;
+                      } else {
+                        ekgText =
+                            'EKG: ${state.monitorRhythm.name.toUpperCase()}';
+                        ekgColor = Colors.greenAccent;
+                      }
+
+                      return Text(
+                        ekgText,
+                        style: TextStyle(
+                          fontSize: 28,
+                          color: ekgColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
