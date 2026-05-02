@@ -126,6 +126,68 @@ class _MainGameScreenState extends State<MainGameScreen> {
                     ),
                   ),
                 ),
+                // --- WARSTWA: TACKA Z LEKAMI (GOTOWE STRZYKAWKI) ---
+                if (engine.state.preparedDrugs.isNotEmpty)
+                  Positioned(
+                    bottom: 85, // Tuż nad dolnymi przyciskami narzędzi
+                    left: 0,
+                    right: 0,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          "TACKA - GOTOWE LEKI (Kliknij, aby podać):",
+                          style: TextStyle(
+                            color: Colors.yellowAccent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Wrap(
+                          spacing: 10,
+                          alignment: WrapAlignment.center,
+                          children: List.generate(
+                            engine.state.preparedDrugs.length,
+                            (index) {
+                              // Dekodujemy nasz zaawansowany format (Lek|Dawka|Popitka)
+                              String fullDrugInfo =
+                                  engine.state.preparedDrugs[index];
+                              String drugName = fullDrugInfo.split('|')[0];
+                              String dose = fullDrugInfo.split('|').length > 1
+                                  ? fullDrugInfo.split('|')[1]
+                                  : "";
+
+                              return ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red[800],
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  side: const BorderSide(
+                                    color: Colors.redAccent,
+                                    width: 1,
+                                  ),
+                                ),
+                                icon: const Icon(Icons.vaccines, size: 18),
+                                label: Text(
+                                  "$drugName ($dose)",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                onPressed: () {
+                                  engine.administerDrug(index);
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // WARSTWA 4: Przyciski narzędzi
                 Positioned(
