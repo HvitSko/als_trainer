@@ -637,19 +637,23 @@ class GameEngine extends ChangeNotifier {
       if (state.patient.pupils.contains("Szpilkowate") &&
           !state.administeredDrugs.contains("Nalokson")) {
         success = false;
+        // ZMIANA: Usunięto spoiler o Naloksonie i zawężono podpowiedź.
         _logEvent(
-          "BŁĄD EBM: Zignorowano wąskie źrenice! Brak podaży antidotum (Nalokson).",
+          "BŁĄD EBM: Zignorowano specyficzne objawy kliniczne! Brak wdrożenia celowanej farmakoterapii odtrutkowej.",
           isError: true,
         );
       } else if (state.patient.pupils.contains("Szpilkowate") &&
           state.administeredDrugs.contains("Nalokson")) {
         success = true;
+        // ZMIANA: Usunięto jawną nazwę leku z logu sukcesu
         _logEvent(
-          "SUKCES EBM: Zatrucie opioidami odpowiednio zabezpieczone (podano Nalokson).",
+          "SUKCES EBM: Podejrzenie zatrucia odpowiednio zabezpieczone właściwym antidotum.",
         );
       } else {
         success = true;
-        _logEvent("INFO: Przyczyna toksykologiczna wstępnie wykluczona.");
+        _logEvent(
+          "INFO: Przyczyna toksykologiczna wstępnie wykluczona na podstawie oceny klinicznej.",
+        );
       }
     } else if (cause == "Hipoksja") {
       bool hasAirway =

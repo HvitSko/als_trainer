@@ -66,7 +66,13 @@ class PatientView extends StatelessWidget {
                         "Klatka piersiowa:",
                         patient.chestMovement,
                       ),
-                      _buildAssessmentRow("Źrenice:", patient.pupils),
+                      // ZMIANA: Źrenice są ukryte do momentu wykonania badania!
+                      _buildAssessmentRow(
+                        "Źrenice (D):",
+                        state.isPhysicalExamDone
+                            ? patient.pupils
+                            : "Niezbadane (wymaga oceny)",
+                      ),
                       _buildAssessmentRow(
                         "Szacowana waga:",
                         "${patient.weight.toStringAsFixed(0)} kg",
