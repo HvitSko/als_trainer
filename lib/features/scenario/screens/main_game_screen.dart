@@ -9,6 +9,7 @@ import '../widgets/inventory/ampularium.dart';
 import '../widgets/inventory/airway_dialog.dart';
 import '../widgets/inventory/diagnostics_dialog.dart';
 import '../widgets/inventory/h4t_dialog.dart';
+import 'package:flutter/services.dart'; // Dodaj ten import na górze pliku, żeby SystemNavigator zadziałał!
 
 class MainGameScreen extends StatefulWidget {
   final Scenario scenario;
@@ -61,56 +62,77 @@ class _MainGameScreenState extends State<MainGameScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.grey[900],
+        title: Text(
+          widget.mode == GameMode.test
+              ? "TRYB: EGZAMIN (TEST)"
+              : "TRYB: ĆWICZENIA (PRACTICE)",
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
+            tooltip: "Przerwij i wyjdź",
+            onPressed: () {
+              // Awaryjne zamknięcie aplikacji we Flutterze
+              SystemNavigator.pop();
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
-        child: Stack(
-          children: [
-            // --- WARSTWA 1: PAGE VIEW ---
-            PageView(
-              controller: _pageController,
+        child: AnimatedBuilder(
+          animation: engine,
+          builder: (context, _) {
+            return Stack(
               children: [
-                PatientView(engine: engine),
-                MonitorView(engine: engine),
-              ],
-            ),
-
-            // --- WARSTWA 2: WSKAŹNIK EKRANU ---
-            Positioned(
-              bottom: 110,
-              left: 0,
-              right: 0,
-              child: IgnorePointer(
-                // Ignoruje kliknięcia, żeby nie blokować UI pod spodem
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                // WARSTWA 1: Ekrany główne
+                PageView(
+                  controller: _pageController,
                   children: [
-                    // ignore: deprecated_member_use
-                    Icon(Icons.person, color: Colors.white.withOpacity(0.5)),
-                    const SizedBox(width: 8),
-                    Text(
-                      "< Przesuń >",
-                      // ignore: deprecated_member_use
-                      style: TextStyle(color: Colors.white.withOpacity(0.5)),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.monitor_heart,
-                      // ignore: deprecated_member_use
-                      color: Colors.white.withOpacity(0.5),
-                    ),
+                    MonitorView(engine: engine),
+                    PatientView(engine: engine),
                   ],
                 ),
-              ),
-            ),
 
-            // --- WARSTWA 3: GLOBAL OVERLAY STACK (Narzędzia) ---
-            Positioned(
-              bottom: 20,
-              left: 0,
-              right: 0,
-              child: AnimatedBuilder(
-                animation: engine,
-                builder: (context, _) {
-                  return Row(
+                // WARSTWA 3: Wskaźnik ekranów
+                Positioned(
+                  bottom: 110,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.monitor_heart,
+                          color: Colors.white.withOpacity(0.5),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "< PRZESUŃ EKRAN >",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.5),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.person,
+                          color: Colors.white.withOpacity(0.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // WARSTWA 4: Przyciski narzędzi
+                Positioned(
+                  bottom: 20,
+                  left: 0,
+                  right: 0,
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _buildOverlayButton(
@@ -121,15 +143,13 @@ class _MainGameScreenState extends State<MainGameScreen> {
                             (engine.state.isPreparingDrug ||
                                 engine.state.preparedDrugs.length >= 2)
                             ? null
-                            : () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AmpulariumDialog(
-                                    onDrugPrepared: (drug, dose) =>
-                                        engine.prepareDrug(drug, dose),
-                                  ),
-                                );
-                              },
+                            : () => showDialog(
+                                context: context,
+                                builder: (context) => AmpulariumDialog(
+                                  onDrugPrepared: (drug, dose) =>
+                                      engine.prepareDrug(drug, dose),
+                                ),
+                              ),
                       ),
                       _buildOverlayButton(
                         icon: Icons.air,
@@ -148,7 +168,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
                           context: context,
                           builder: (context) =>
                               DiagnosticsDialog(engine: engine),
-                        ), // W torbie są narzędzia
+                        ),
                       ),
                       _buildOverlayButton(
                         icon: Icons.psychology,
@@ -157,79 +177,14 @@ class _MainGameScreenState extends State<MainGameScreen> {
                         onPressed: () => showDialog(
                           context: context,
                           builder: (context) => H4TDialog(engine: engine),
-                        ), // NOWY WIDŻET
+                        ),
                       ),
                     ],
-                  );
-                },
-              ),
-            ),
-
-            // --- WARSTWA 4: PŁYWAJĄCA TACKA NA LEKI ---
-            Positioned(
-              bottom: 90,
-              right: 20,
-              child: AnimatedBuilder(
-                animation: engine,
-                builder: (context, _) {
-                  if (engine.state.preparedDrugs.isEmpty)
-                    // ignore: curly_braces_in_flow_control_structures
-                    return const SizedBox.shrink();
-                  return Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.black87,
-                      border: Border.all(color: Colors.blueAccent),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: engine.state.preparedDrugs.asMap().entries.map((
-                        entry,
-                      ) {
-                        int index = entry.key;
-                        String drugNameRaw = entry.value;
-                        bool isReady = !drugNameRaw.startsWith(
-                          'Przygotowywanie',
-                        );
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4.0),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                drugNameRaw.replaceAll('|', ' '),
-                                style: TextStyle(
-                                  color: isReady
-                                      ? Colors.greenAccent
-                                      : Colors.yellow,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              if (isReady)
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    minimumSize: const Size(60, 30),
-                                    padding: EdgeInsets.zero,
-                                  ),
-                                  onPressed: () => engine.administerDrug(index),
-                                  child: const Text(
-                                    'PODAĆ',
-                                    style: TextStyle(fontSize: 10),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
