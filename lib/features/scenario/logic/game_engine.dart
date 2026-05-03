@@ -472,9 +472,7 @@ class GameEngine extends ChangeNotifier {
     state.airwayStatus = AirwayType.endotracheal;
     state.intubationAttemptInProgress = false;
     state.isIntubationVerified = false;
-    _logEvent(
-      "INFO: Rurka wprowadzona. ŚLEPA INTUBACJA. Natychmiast zweryfikuj jej położenie!",
-    );
+    _logEvent("INFO: Rurka wprowadzona. Zweryfikuj jej położenie!");
     notifyListeners();
   }
 
@@ -504,9 +502,7 @@ class GameEngine extends ChangeNotifier {
     state.airwayStatus = AirwayType.endotracheal;
     state.intubationAttemptInProgress = false;
     state.isIntubationVerified = false;
-    _logEvent(
-      "INFO: Rurka wprowadzona. ŚLEPA INTUBACJA. Natychmiast zweryfikuj jej położenie!",
-    );
+    _logEvent("INFO: Rurka wprowadzona. Zweryfikuj jej położenie!");
     notifyListeners();
   }
 
@@ -569,18 +565,18 @@ class GameEngine extends ChangeNotifier {
 
     if (state.patient.hiddenCause == ReversibleCause.tamponade) {
       _logEvent(
-        "DIAGNOZA (USG): Potężna przestrzeń płynowa w osierdziu! Serce pływa (TAMPONADA)!",
+        "DIAGNOZA (USG): Potężna przestrzeń płynowa w osierdziu!",
         isError: true,
       );
     } else if (state.patient.hiddenCause ==
         ReversibleCause.tensionPneumothorax) {
       _logEvent(
-        "DIAGNOZA (USG): Brak objawu ślizgania opłucnej! Kod kreskowy w M-Mode! (ODMA PRĘŻNA)!",
+        "DIAGNOZA (USG): Brak objawu ślizgania opłucnej! Kod kreskowy w M-Mode!",
         isError: true,
       );
     } else if (state.patient.hiddenCause == ReversibleCause.hypovolemia) {
       _logEvent(
-        "DIAGNOZA (USG): Żyła główna dolna (IVC) całkowicie zapadnięta. Hipowolemia!",
+        "DIAGNOZA (USG): Żyła główna dolna (IVC) całkowicie zapadnięta.",
         isError: true,
       );
     } else {
@@ -640,8 +636,7 @@ class GameEngine extends ChangeNotifier {
       notifyListeners();
       return "Źrenice:\n${state.patient.pupils}";
     } else if (tool == "Stetoskop") {
-      state.isAuscultated = true; // Zabezpieczenie dla 4H4T (Odma)!
-
+      state.isAuscultated = true;
       if (target == "Nadbrzusze") {
         String stomach =
             (state.airwayStatus == AirwayType.endotracheal &&
@@ -652,16 +647,16 @@ class GameEngine extends ChangeNotifier {
         notifyListeners();
         return "Żołądek:\n$stomach";
       } else if (target.contains("Klatka") || target.contains("Bok")) {
-        // Symulacja prosta (w przyszłości rozbudujemy o stronę lewą/prawą)
+        bool isLeft = target.contains("Lew"); // Wykrywa Lewą Klatkę / Lewy Bok
         String sounds = "Brak szmerów / Zbyt cicho";
         if (state.airwayStatus == AirwayType.endotracheal) {
           if (state.intubationStatus == IntubationStatus.esophageal)
             sounds = "Brak szmerów (Rurka w przełyku)";
           else if (state.intubationStatus == IntubationStatus.rightMainstem &&
-              target.contains("Lewa"))
-            sounds = "Cisza! (Zaintubowane prawe oskrzele)";
+              isLeft)
+            sounds = "CISZA!";
           else if (state.intubationStatus == IntubationStatus.rightMainstem &&
-              target.contains("Prawa"))
+              !isLeft)
             sounds = "Czysty szmer pęcherzykowy";
           else
             sounds = "Symetryczny szmer pęcherzykowy";
