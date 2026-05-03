@@ -432,11 +432,25 @@ class GameEngine extends ChangeNotifier {
   }
 
   Future<void> preoxygenate() async {
-    if (state.airwayStatus != AirwayType.bvm || state.oxygenFlow < 15) return;
-    _logEvent("INFO: Zespół preoksygenuje pacjenta...");
-    await Future.delayed(const Duration(seconds: 4));
+    closeMenus(); // Zamykamy HUD, żeby zrobić miejsce na ekranie pacjenta!
+
+    // Logika EBM: Nie da się preoksygenować powietrzem z pokoju i bez sprzętu
+    if (state.airwayStatus != AirwayType.bvm || state.oxygenFlow < 15) {
+      _logEvent(
+        "BŁĄD EBM: Preoksygenacja wymaga założonego worka BVM i przepływu tlenu min. 15 l/min!",
+        isError: true,
+      );
+      notifyListeners();
+      return;
+    }
+
+    _logEvent("INFO: Zespół preoksygenuje pacjenta (100% O2)...");
+    notifyListeners(); // Odświeżamy UI, żeby pokazać info w nowym HUD
+
+    await Future.delayed(const Duration(seconds: 4)); // Symulacja czasu w grze
+
     state.isPreoxygenated = true;
-    _logEvent("SUKCES: Pacjent natleniony.");
+    _logEvent("SUKCES EBM: Pacjent odpowiednio natleniony.");
     notifyListeners();
   }
 
