@@ -24,12 +24,13 @@ class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black, // Lub taki jaki masz
+      // ... (jeśli masz tu AppBar, to lepiej go wywal w trybie poziomym)
       body: SafeArea(
         child: Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 600),
-            padding: const EdgeInsets.all(24.0),
+          // MAGIA SKIPPY'EGO: Tę linijkę musisz dodać!
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0), // Marginesy dla estetyki
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
