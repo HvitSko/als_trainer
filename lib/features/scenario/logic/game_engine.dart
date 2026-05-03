@@ -631,50 +631,139 @@ class GameEngine extends ChangeNotifier {
 
   // --- NOWY SYSTEM: INTERAKTYWNE BADANIE (DRAG & DROP) ---
   String performTargetedExam(String tool, String target) {
-    state.isPhysicalExamDone =
-        true; // Zaznaczamy, że w ogóle dotykaliśmy pacjenta
+    state.isPhysicalExamDone = true;
 
-    if (tool == "Latarka" && target == "Oczy") {
+    if (tool == "Latarka" && target == "Głowa") {
       _logEvent(
         "BADANIE: Oceniono źrenice (Latarka). Wynik: ${state.patient.pupils}.",
       );
       notifyListeners();
-      return "Źrenice: ${state.patient.pupils}";
-    } else if (tool == "Stetoskop" && target == "Klatka") {
+      return "Źrenice:\n${state.patient.pupils}";
+    } else if (tool == "Stetoskop") {
       state.isAuscultated = true; // Zabezpieczenie dla 4H4T (Odma)!
 
-      String sounds = "Brak szmerów (Klatka nieruchoma)";
-      // Logika EBM: Szmery zależne od rurki!
-      if (state.airwayStatus == AirwayType.endotracheal) {
-        if (state.intubationStatus == IntubationStatus.esophageal)
-          sounds = "Bulgotanie w żołądku! (Rurka w przełyku)";
-        else if (state.intubationStatus == IntubationStatus.rightMainstem)
-          sounds = "Szmer tylko po PRAWEJ stronie! (Za głęboko)";
-        else
-          sounds = "Symetryczny szmer pęcherzykowy";
-      } else if (state.airwayStatus == AirwayType.igel ||
-          state.airwayStatus == AirwayType.bvm) {
-        sounds = "Symetryczny szmer pęcherzykowy (Wentylacja wymuszona)";
+      if (target == "Nadbrzusze") {
+        String stomach =
+            (state.airwayStatus == AirwayType.endotracheal &&
+                state.intubationStatus == IntubationStatus.esophageal)
+            ? "BULGOTANIE! (Rurka w przełyku!)"
+            : "Cisza (Prawidłowo)";
+        _logEvent("BADANIE: Osłuchiwanie żołądka. Wynik: $stomach.");
+        notifyListeners();
+        return "Żołądek:\n$stomach";
+      } else if (target.contains("Klatka") || target.contains("Bok")) {
+        // Symulacja prosta (w przyszłości rozbudujemy o stronę lewą/prawą)
+        String sounds = "Brak szmerów / Zbyt cicho";
+        if (state.airwayStatus == AirwayType.endotracheal) {
+          if (state.intubationStatus == IntubationStatus.esophageal)
+            sounds = "Brak szmerów (Rurka w przełyku)";
+          else if (state.intubationStatus == IntubationStatus.rightMainstem &&
+              target.contains("Lewa"))
+            sounds = "Cisza! (Zaintubowane prawe oskrzele)";
+          else if (state.intubationStatus == IntubationStatus.rightMainstem &&
+              target.contains("Prawa"))
+            sounds = "Czysty szmer pęcherzykowy";
+          else
+            sounds = "Symetryczny szmer pęcherzykowy";
+        } else if (state.airwayStatus == AirwayType.igel ||
+            state.airwayStatus == AirwayType.bvm) {
+          sounds = "Szmer pęcherzykowy (Wentylacja wymuszona)";
+        }
+        _logEvent("BADANIE: Osłuchiwanie ($target). Wynik: $sounds.");
+        notifyListeners();
+        return "Osłuchiwanie:\n$sounds";
       }
-
-      _logEvent("BADANIE: Osłuchiwanie klatki piersiowej. Wynik: $sounds.");
-      notifyListeners();
-      return "Osłuchiwanie:\n$sounds";
-    } else if (tool == "Termometr" && target == "Głowa") {
+    } else if (tool == "Termometr" &&
+        (target == "Głowa" || target == "Szyja")) {
       state.isTempMeasured = true;
       _logEvent(
-        "BADANIE: Zmierzono temperaturę w błonie bębenkowej: ${state.patient.temperature}°C.",
+        "BADANIE: Zmierzono temperaturę ciała: ${state.patient.temperature}°C.",
       );
       notifyListeners();
-      return "Temperatura: ${state.patient.temperature}°C";
+      return "Temperatura:\n${state.patient.temperature}°C";
+    }
+    // ZMIANA: Nawiasy zabezpieczające logikę Boole'a!
+    else if (tool == "Glukometr" &&
+        (target.contains("Dłoń") ||
+            target.contains("Noga") ||
+            target.contains("Zgięcie"))) {
+      state.isGlucoseMeasured = true;
+      _logEvent(
+        "BADANIE: Zmierzono glikemię z $target. Wynik: ${state.patient.bloodGlucose} mg/dL.",
+      );
+      notifyListeners();
+      return "Glikemia:\n${state.patient.bloodGlucose} mg/dL";
+    } else if (tool == "Pulsoksymetr" &&
+        (target.contains("Dłoń") || target.contains("Noga"))) {
+      attachSpO2();
+      return "Założono klips SpO2\n(Odczyt na monitorze)";
+    } else if (tool == "USG: Hokus POCUS") {
+      if (target == "Nadbrzusze") {
+        bool tamp = state.patient.hiddenCause == ReversibleCause.tamponade;
+        _logEvent(
+          "USG: Projekcja podmostkowa. ${tamp ? 'PŁYN W OSIERDZIU!' : 'Brak płynu w worku osierdziowym.'}",
+        );
+        notifyListeners();
+        return "USG (Serce):\n${tamp ? 'PŁYN W OSIERDZIU!' : 'Norma'}";
+      } else if (target.contains("Klatka")) {
+        bool pneumo =
+            state.patient.hiddenCause == ReversibleCause.tensionPneumothorax;
+        _logEvent(
+          "USG: Ocena opłucnej ($target). ${pneumo ? 'BRAK SLIDINGU (Kod Kreskowy)!' : 'Objaw ślizgania obecny.'}",
+        );
+        notifyListeners();
+        return "USG (Opłucna):\n${pneumo ? 'Brak ślizgania! (Odma?)' : 'Ślizganie obecne'}";
+      } else if (target == "Bok Prawy") {
+        bool hypo = state.patient.hiddenCause == ReversibleCause.hypovolemia;
+        _logEvent(
+          "USG: Zachyłek Morisona / IVC. ${hypo ? 'IVC Zapadnięta (Hipowolemia)!' : 'Brak wolnego płynu, IVC w normie.'}",
+        );
+        notifyListeners();
+        return "USG (Morison):\n${hypo ? 'IVC Zapadnięta!' : 'Czysto'}";
+      } else if (target == "Bok Lewy" || target == "Podbrzusze") {
+        _logEvent("USG: $target. Brak wolnego płynu.");
+        notifyListeners();
+        return "USG ($target):\nBrak wolnego płynu";
+      }
+    } else if (tool == "Folia NRC" &&
+        (target.contains("Klatka") || target.contains("brzusze"))) {
+      provideThermalComfort();
+      return "Pacjent zabezpieczony termicznie.";
+    } else if (tool == "Oglądanie" || tool == "Badanie Fizykalne") {
+      if (target == "Szyja") {
+        bool isDistended =
+            (state.patient.hiddenCause == ReversibleCause.tensionPneumothorax ||
+            state.patient.hiddenCause == ReversibleCause.tamponade);
+        String jvdText = isDistended
+            ? "Żyły szyjne NADMIERNIE WYPEŁNIONE!"
+            : "Żyły szyjne płaskie/zapadnięte.";
+        _logEvent("BADANIE: Oceniono szyję. $jvdText");
+        notifyListeners();
+        return "Szyja:\n$jvdText";
+      } else if (target.contains("Noga")) {
+        _logEvent(
+          "BADANIE: Oceniono $target. Brak widocznych obrzęków obwodowych.",
+        );
+        notifyListeners();
+        return "$target:\nBrak obrzęków";
+      } else if (target == "Głowa") {
+        _logEvent(
+          "BADANIE: Twarz/Głowa. Skóra ${state.patient.skinCondition.toLowerCase()}.",
+        );
+        notifyListeners();
+        return "Twarz:\nSkóra ${state.patient.skinCondition.toLowerCase()}";
+      } else {
+        _logEvent("BADANIE: $target. Skóra: ${state.patient.skinCondition}.");
+        notifyListeners();
+        return "$target:\nSkóra: ${state.patient.skinCondition}";
+      }
     }
 
-    // Jeśli gracz zrobi głupotę (np. latarka na klatkę)
     _logEvent(
-      "AKCJA: Próba użycia $tool na $target. Brak użytecznych wniosków diagnostycznych.",
+      "AKCJA: Próba użycia '$tool' na '$target'. Brak logicznej procedury EBM.",
       isError: true,
     );
-    return "Brak reakcji / Niewłaściwe użycie sprzętu";
+    return "Niewłaściwe użycie sprzętu";
   }
 
   void evaluate4H4TCause(String cause) {

@@ -7,7 +7,6 @@ import 'monitor_view.dart';
 import 'feedback_screen.dart'; // ZARAZ GO STWORZYMY
 import '../widgets/inventory/ampularium.dart';
 import '../widgets/inventory/airway_dialog.dart';
-import '../widgets/inventory/diagnostics_dialog.dart';
 import '../widgets/inventory/h4t_dialog.dart';
 import 'package:flutter/services.dart'; // Dodaj ten import na górze pliku, żeby SystemNavigator zadziałał!
 
@@ -269,11 +268,11 @@ class _MainGameScreenState extends State<MainGameScreen> {
                       _buildOverlayButton(
                         icon: Icons.backpack,
                         color: Colors.orange[900]!,
-                        label: "Torba",
-                        onPressed: () => showDialog(
-                          context: context,
-                          builder: (context) =>
-                              DiagnosticsDialog(engine: engine),
+                        label: "Badaj",
+                        onPressed: () => _pageController.animateToPage(
+                          1,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
                         ),
                       ),
                       _buildOverlayButton(
