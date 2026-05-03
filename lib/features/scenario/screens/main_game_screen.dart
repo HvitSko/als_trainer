@@ -1,3 +1,4 @@
+import 'scenario_intro_screen.dart'; // Upewnij się, że ścieżka jest poprawna dla Twojej struktury
 import 'package:flutter/material.dart';
 import '../logic/game_engine.dart';
 import '../models/scenario_model.dart';
@@ -60,25 +61,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.grey[900],
-        title: Text(
-          widget.mode == GameMode.test
-              ? "TRYB: EGZAMIN (TEST)"
-              : "TRYB: ĆWICZENIA (PRACTICE)",
-          style: const TextStyle(color: Colors.white70, fontSize: 14),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
-            tooltip: "Przerwij i wyjdź",
-            onPressed: () {
-              // Awaryjne zamknięcie aplikacji we Flutterze
-              SystemNavigator.pop();
-            },
-          ),
-        ],
-      ),
+
       body: SafeArea(
         child: AnimatedBuilder(
           animation: engine,
@@ -291,6 +274,82 @@ class _MainGameScreenState extends State<MainGameScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                // NAKŁADKA WYJŚCIA Z GRY (Musi być na samym końcu Stack.children, żeby być na wierzchu!)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: SafeArea(
+                    child: Material(
+                      color: Colors
+                          .transparent, // Material jest potrzebny, żeby animacja kliknięcia (ripple) działała poprawnie
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.exit_to_app,
+                          color: Colors.redAccent,
+                          size: 36,
+                        ),
+                        onPressed: () {
+                          // Blokada przed przypadkowym porzuceniem pacjenta (Fail-safe)
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                backgroundColor: Colors.grey[900],
+                                title: const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Colors.redAccent,
+                                    ),
+                                    SizedBox(width: 10),
+                                    Text(
+                                      "Przerwać akcję?",
+                                      style: TextStyle(color: Colors.redAccent),
+                                    ),
+                                  ],
+                                ),
+                                content: const Text(
+                                  "Czy na pewno chcesz porzucić pacjenta i wrócić do dyspozytorni? Akcja zostanie przerwana.",
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(
+                                      context,
+                                    ).pop(), // Zamyka tylko okienko
+                                    child: const Text(
+                                      "Zostań",
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red[800],
+                                    ),
+                                    onPressed: () {
+                                      // Potężne czyszczenie stosu nawigacji i powrót do Intro!
+                                      Navigator.of(context).pushAndRemoveUntil(
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const ScenarioIntroScreen(),
+                                        ),
+                                        (route) => false,
+                                      );
+                                    },
+                                    child: const Text(
+                                      "Zakończ Akcję",
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
                   ),
                 ),
               ],

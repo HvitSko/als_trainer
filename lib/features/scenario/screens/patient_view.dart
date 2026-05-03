@@ -158,243 +158,259 @@ class _PatientViewState extends State<PatientView> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Image.asset(
-            'assets/images/patient_body.png',
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) =>
-                const Center(child: Text("Brak grafiki!")),
-          ),
-        ),
+    // MAGIA SKIPPY'EGO: Zamrażamy wymiary przestrzeni, a system pozwala ją szczypać i przesuwać!
+    return InteractiveViewer(
+      panEnabled: true,
+      minScale: 0.5,
+      maxScale: 3.0,
+      child: Center(
+        child: SizedBox(
+          width:
+              1200, // Złota zasada EBM dla UI: stała szerokość płótna! (Dostosuj jeśli ucięło Ci nogi)
+          height: 600, // Stała wysokość płótna!
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/patient_body.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Center(child: Text("Brak grafiki!")),
+                ),
+              ),
 
-        // --- ZNACZNIKI DIAGNOSTYCZNE ---
-        Align(
-          alignment: const Alignment(-0.88, -0.15),
-          child: _buildDropZone("Głowa", 120, 100),
-        ),
-        Align(
-          alignment: const Alignment(-0.65, -0.12),
-          child: _buildDropZone("Szyja", 80, 80),
-        ),
-        Align(
-          alignment: const Alignment(-0.52, -0.32),
-          child: _buildDropZone("Klatka Lewa", 100, 90),
-        ),
-        Align(
-          alignment: const Alignment(-0.52, 0.10),
-          child: _buildDropZone("Klatka Prawa", 100, 90),
-        ),
-        Align(
-          alignment: const Alignment(-0.28, -0.12),
-          child: _buildDropZone("Nadbrzusze", 80, 90),
-        ),
-        Align(
-          alignment: const Alignment(-0.12, -0.10),
-          child: _buildDropZone("Podbrzusze", 80, 90),
-        ),
-        Align(
-          alignment: const Alignment(-0.30, -0.35),
-          child: _buildDropZone("Bok Lewy", 90, 60),
-        ),
-        Align(
-          alignment: const Alignment(-0.30, 0.20),
-          child: _buildDropZone("Bok Prawy", 90, 60),
-        ),
-        Align(
-          alignment: const Alignment(-0.26, -0.55),
-          child: _buildDropZone("Zgięcie Lewa", 70, 70),
-        ),
-        Align(
-          alignment: const Alignment(-0.32, 0.48),
-          child: _buildDropZone("Zgięcie Prawa", 80, 80),
-        ),
-        Align(
-          alignment: const Alignment(0.10, -0.62),
-          child: _buildDropZone("Dłoń Lewa", 80, 80),
-        ),
-        Align(
-          alignment: const Alignment(0.10, 0.70),
-          child: _buildDropZone("Dłoń Prawa", 80, 80),
-        ),
-        Align(
-          alignment: const Alignment(0.85, -0.25),
-          child: _buildDropZone("Noga Lewa", 140, 100),
-        ),
-        Align(
-          alignment: const Alignment(0.85, 0.35),
-          child: _buildDropZone("Noga Prawa", 140, 100),
-        ),
-        // --- 5. GÓRNY HUD: POWIADOMIENIA Z DZIENNIKA (EBM) ---
-        Builder(
-          builder: (context) {
-            bool isRoutineExamLog =
-                _hudLog.startsWith("BADANIE:") ||
-                _hudLog.startsWith("USG:") ||
-                _hudLog.startsWith("AKCJA: Założono") ||
-                _hudLog.startsWith("DIAGNOZA");
+              // --- ZNACZNIKI DIAGNOSTYCZNE ---
+              Align(
+                alignment: const Alignment(-0.88, -0.15),
+                child: _buildDropZone("Głowa", 120, 100),
+              ),
+              Align(
+                alignment: const Alignment(-0.65, -0.12),
+                child: _buildDropZone("Szyja", 80, 80),
+              ),
+              Align(
+                alignment: const Alignment(-0.52, -0.32),
+                child: _buildDropZone("Klatka Lewa", 100, 90),
+              ),
+              Align(
+                alignment: const Alignment(-0.52, 0.10),
+                child: _buildDropZone("Klatka Prawa", 100, 90),
+              ),
+              Align(
+                alignment: const Alignment(-0.28, -0.12),
+                child: _buildDropZone("Nadbrzusze", 80, 90),
+              ),
+              Align(
+                alignment: const Alignment(-0.12, -0.10),
+                child: _buildDropZone("Podbrzusze", 80, 90),
+              ),
+              Align(
+                alignment: const Alignment(-0.30, -0.35),
+                child: _buildDropZone("Bok Lewy", 90, 60),
+              ),
+              Align(
+                alignment: const Alignment(-0.30, 0.20),
+                child: _buildDropZone("Bok Prawy", 90, 60),
+              ),
+              Align(
+                alignment: const Alignment(-0.26, -0.55),
+                child: _buildDropZone("Zgięcie Lewa", 70, 70),
+              ),
+              Align(
+                alignment: const Alignment(-0.32, 0.48),
+                child: _buildDropZone("Zgięcie Prawa", 80, 80),
+              ),
+              Align(
+                alignment: const Alignment(0.10, -0.62),
+                child: _buildDropZone("Dłoń Lewa", 80, 80),
+              ),
+              Align(
+                alignment: const Alignment(0.10, 0.70),
+                child: _buildDropZone("Dłoń Prawa", 80, 80),
+              ),
+              Align(
+                alignment: const Alignment(0.85, -0.25),
+                child: _buildDropZone("Noga Lewa", 140, 100),
+              ),
+              Align(
+                alignment: const Alignment(0.85, 0.35),
+                child: _buildDropZone("Noga Prawa", 140, 100),
+              ),
+              // --- 5. GÓRNY HUD: POWIADOMIENIA Z DZIENNIKA (EBM) ---
+              Builder(
+                builder: (context) {
+                  bool isRoutineExamLog =
+                      _hudLog.startsWith("BADANIE:") ||
+                      _hudLog.startsWith("USG:") ||
+                      _hudLog.startsWith("AKCJA: Założono") ||
+                      _hudLog.startsWith("DIAGNOZA");
 
-            bool showHud =
-                _hudLog.isNotEmpty &&
-                !(isRoutineExamLog && _examResult.isNotEmpty);
+                  bool showHud =
+                      _hudLog.isNotEmpty &&
+                      !(isRoutineExamLog && _examResult.isNotEmpty);
 
-            if (!showHud) return const SizedBox.shrink();
+                  if (!showHud) return const SizedBox.shrink();
 
-            return Positioned(
-              top: 20,
-              left: MediaQuery.of(context).size.width * 0.15,
-              right: MediaQuery.of(context).size.width * 0.15,
-              child: SafeArea(
-                child: AnimatedOpacity(
-                  opacity: _hudLog.isNotEmpty ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 300),
+                  return Positioned(
+                    top: 20,
+                    left: MediaQuery.of(context).size.width * 0.15,
+                    right: MediaQuery.of(context).size.width * 0.15,
+                    child: SafeArea(
+                      child: AnimatedOpacity(
+                        opacity: _hudLog.isNotEmpty ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 300),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _hudLog.contains("BŁĄD")
+                                ? Colors.red[900]?.withOpacity(0.95)
+                                : (_hudLog.contains("SUKCES")
+                                      ? Colors.green[900]?.withOpacity(0.95)
+                                      : Colors.black87),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _hudLog.contains("BŁĄD")
+                                  ? Colors.redAccent
+                                  : Colors.grey,
+                              width: 2,
+                            ),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black54, blurRadius: 10),
+                            ],
+                          ),
+                          child: Text(
+                            _hudLog,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // --- WYNIKI POP-UP ---
+              if (_examResult.isNotEmpty)
+                Align(
+                  alignment: const Alignment(0.0, -0.8),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                      horizontal: 24,
+                      vertical: 16,
                     ),
                     decoration: BoxDecoration(
-                      color: _hudLog.contains("BŁĄD")
-                          ? Colors.red[900]?.withOpacity(0.95)
-                          : (_hudLog.contains("SUKCES")
-                                ? Colors.green[900]?.withOpacity(0.95)
-                                : Colors.black87),
+                      color: Colors.blue[900]?.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _hudLog.contains("BŁĄD")
-                            ? Colors.redAccent
-                            : Colors.grey,
-                        width: 2,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black54, blurRadius: 10),
-                      ],
+                      border: Border.all(color: Colors.cyanAccent, width: 2),
                     ),
                     child: Text(
-                      _hudLog,
+                      _examResult,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 13,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
-        // --- WYNIKI POP-UP ---
-        if (_examResult.isNotEmpty)
-          Align(
-            alignment: const Alignment(0.0, -0.8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.blue[900]?.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.cyanAccent, width: 2),
-              ),
-              child: Text(
-                _examResult,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
 
-        // --- INTERFEJS NARZĘDZI (UKRYTY LUB WIDOCZNY) ---
-        if (_equippedTool == null) ...[
-          if (widget.engine.state.isBagOpen) _buildBagOverlay(),
-          if (widget.engine.state.isAirwayMenuOpen) _buildAirwayOverlay(),
-        ] else ...[
-          // KOSZ / ODKŁADANIE
-          Positioned(
-            bottom: 130,
-            left: 30,
-            child: DragTarget<String>(
-              onAcceptWithDetails: (details) =>
-                  setState(() => _equippedTool = null),
-              builder: (context, candidate, rejected) => Column(
-                children: [
-                  Icon(
-                    Icons.backpack,
-                    size: candidate.isNotEmpty ? 70 : 50,
-                    color: candidate.isNotEmpty
-                        ? Colors.orangeAccent
-                        : Colors.grey,
-                  ),
-                  Text(
-                    "Odłóż",
-                    style: TextStyle(
-                      color: candidate.isNotEmpty
-                          ? Colors.orangeAccent
-                          : Colors.grey,
+              // --- INTERFEJS NARZĘDZI (UKRYTY LUB WIDOCZNY) ---
+              if (_equippedTool == null) ...[
+                if (widget.engine.state.isBagOpen) _buildBagOverlay(),
+                if (widget.engine.state.isAirwayMenuOpen) _buildAirwayOverlay(),
+              ] else ...[
+                // KOSZ / ODKŁADANIE
+                Positioned(
+                  bottom: 130,
+                  left: 30,
+                  child: DragTarget<String>(
+                    onAcceptWithDetails: (details) =>
+                        setState(() => _equippedTool = null),
+                    builder: (context, candidate, rejected) => Column(
+                      children: [
+                        Icon(
+                          Icons.backpack,
+                          size: candidate.isNotEmpty ? 70 : 50,
+                          color: candidate.isNotEmpty
+                              ? Colors.orangeAccent
+                              : Colors.grey,
+                        ),
+                        Text(
+                          "Odłóż",
+                          style: TextStyle(
+                            color: candidate.isNotEmpty
+                                ? Colors.orangeAccent
+                                : Colors.grey,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-          // NARZĘDZIE W RĘKU
-          Positioned(
-            bottom: 130,
-            right: 30,
-            child: Draggable<String>(
-              data: _equippedTool,
-              feedback: Material(
-                color: Colors.transparent,
-                child: Icon(
-                  _getIconForTool(_equippedTool!),
-                  size: 80,
-                  color: Colors.blueAccent,
                 ),
-              ),
-              childWhenDragging: Opacity(
-                opacity: 0.2,
-                child: Column(
-                  children: [
-                    Icon(
-                      _getIconForTool(_equippedTool!),
-                      size: 60,
-                      color: Colors.greenAccent,
+                // NARZĘDZIE W RĘKU
+                Positioned(
+                  bottom: 130,
+                  right: 30,
+                  child: Draggable<String>(
+                    data: _equippedTool,
+                    feedback: Material(
+                      color: Colors.transparent,
+                      child: Icon(
+                        _getIconForTool(_equippedTool!),
+                        size: 80,
+                        color: Colors.blueAccent,
+                      ),
                     ),
-                    const Text(
-                      "Przeciągasz...",
-                      style: TextStyle(color: Colors.grey),
+                    childWhenDragging: Opacity(
+                      opacity: 0.2,
+                      child: Column(
+                        children: [
+                          Icon(
+                            _getIconForTool(_equippedTool!),
+                            size: 60,
+                            color: Colors.greenAccent,
+                          ),
+                          const Text(
+                            "Przeciągasz...",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
+                    child: Column(
+                      children: [
+                        Icon(
+                          _getIconForTool(_equippedTool!),
+                          size: 60,
+                          color: Colors.greenAccent,
+                        ),
+                        Text(
+                          "W RĘKU:\n$_equippedTool",
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    _getIconForTool(_equippedTool!),
-                    size: 60,
-                    color: Colors.greenAccent,
-                  ),
-                  Text(
-                    "W RĘKU:\n$_equippedTool",
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
+              ],
+            ], // To zamyka listę children w Stack
+          ), // Zamyka Stack
+        ), // Zamyka SizedBox
+      ), // Zamyka Center
+    ); // Zamyka InteractiveViewer i kończy return
+  } // Zamyka metodę build(BuildContext context)
 
   // NAKŁADKA: TORBA DIAGNOSTYCZNA
   Widget _buildBagOverlay() {
