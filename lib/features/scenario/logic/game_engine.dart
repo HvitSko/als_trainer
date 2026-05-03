@@ -503,12 +503,19 @@ class GameEngine extends ChangeNotifier {
 
   void startIntubationMinigame() {
     if (state.intubationAttemptInProgress) return;
+
+    // Stara-nowa weryfikacja EBM!
     if (!state.isPreoxygenated) {
       _logEvent(
-        "KRYTYCZNY BŁĄD EBM: Brak preoksygenacji przed ETI!",
+        "KRYTYCZNY BŁĄD EBM: Brak preoksygenacji przed ETI! Ryzyko gwałtownej desaturacji!",
         isError: true,
       );
+      // DODAJEMY KARĘ OD INSTRUKTORA:
+      state.instructorFeedback.add(
+        "DROGI ODDECHOWE: Zaintubowałeś pacjenta bez preoksygenacji. Zawsze natleniaj pacjenta biernie przed próbą ETI!",
+      );
     }
+
     state.intubationAttemptInProgress = true;
     _logEvent("AKCJA: Rozpoczęto wprowadzanie laryngoskopu (Minigra ETI).");
     notifyListeners();

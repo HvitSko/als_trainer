@@ -67,10 +67,6 @@ class _PatientViewState extends State<PatientView> {
     // SPECJALNY PRZYPADEK: RURKA ETI WYWALA MINIGRĘ I SPRAWDZA TLEN!
     if (tool == "Rurka ETI" && target == "Głowa") {
       setState(() => _equippedTool = null);
-
-      // Wywołujemy naszą nową funkcję z silnika!
-      widget.engine.validateIntubationPreoxygenation();
-
       showDialog(
         context: context,
         builder: (context) => IntubationMinigameDialog(engine: widget.engine),
