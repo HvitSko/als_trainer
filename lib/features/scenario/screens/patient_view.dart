@@ -26,9 +26,7 @@ class _PatientViewState extends State<PatientView> {
   @override
   void initState() {
     super.initState();
-    // Rejestrujemy stan logów przy starcie
-    _lastLogCount = widget.engine.state.auditLog.length;
-    // Podpinamy ucho pod silnik gry
+    _lastLogCount = widget.engine.state.log.length;
     widget.engine.addListener(_onEngineChange);
   }
 
@@ -42,18 +40,20 @@ class _PatientViewState extends State<PatientView> {
   }
 
   // Ta funkcja odpala się za każdym razem, gdy engine robi notifyListeners()
+  // Ta funkcja odpala się za każdym razem, gdy engine robi notifyListeners()
   void _onEngineChange() {
     if (!mounted) return;
-    if (widget.engine.state.auditLog.length > _lastLogCount) {
-      String newLog = widget.engine.state.auditLog.first;
-      // Wycinamy znacznik czasu, żeby było krócej na ekranie pacjenta
+
+    // ZMIANA EBM: Sprawdzamy stan filtru logów (state.log), a nie pełnego audytu (state.auditLog)
+    if (widget.engine.state.log.length > _lastLogCount) {
+      String newLog = widget.engine.state.log.first;
       String cleanLog = newLog.contains("]")
           ? newLog.substring(newLog.indexOf(']') + 2)
           : newLog;
 
       setState(() {
         _hudLog = cleanLog;
-        _lastLogCount = widget.engine.state.auditLog.length;
+        _lastLogCount = widget.engine.state.log.length;
       });
 
       _hudLogTimer?.cancel();
@@ -227,51 +227,65 @@ class _PatientViewState extends State<PatientView> {
           child: _buildDropZone("Noga Prawa", 140, 100),
         ),
         // --- 5. GÓRNY HUD: POWIADOMIENIA Z DZIENNIKA (EBM) ---
-        if (_hudLog.isNotEmpty)
-          Positioned(
-            top: 20,
-            left: MediaQuery.of(context).size.width * 0.15,
-            right: MediaQuery.of(context).size.width * 0.15,
-            child: SafeArea(
-              child: AnimatedOpacity(
-                opacity: _hudLog.isNotEmpty ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _hudLog.contains("BŁĄD")
-                        ? Colors.red[900]?.withOpacity(0.95)
-                        : (_hudLog.contains("SUKCES")
-                              ? Colors.green[900]?.withOpacity(0.95)
-                              : Colors.black87),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _hudLog.contains("BŁĄD")
-                          ? Colors.redAccent
-                          : Colors.grey,
-                      width: 2,
+        Builder(
+          builder: (context) {
+            bool isRoutineExamLog =
+                _hudLog.startsWith("BADANIE:") ||
+                _hudLog.startsWith("USG:") ||
+                _hudLog.startsWith("AKCJA: Założono") ||
+                _hudLog.startsWith("DIAGNOZA");
+
+            bool showHud =
+                _hudLog.isNotEmpty &&
+                !(isRoutineExamLog && _examResult.isNotEmpty);
+
+            if (!showHud) return const SizedBox.shrink();
+
+            return Positioned(
+              top: 20,
+              left: MediaQuery.of(context).size.width * 0.15,
+              right: MediaQuery.of(context).size.width * 0.15,
+              child: SafeArea(
+                child: AnimatedOpacity(
+                  opacity: _hudLog.isNotEmpty ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
                     ),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black54, blurRadius: 10),
-                    ],
-                  ),
-                  child: Text(
-                    _hudLog,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+                    decoration: BoxDecoration(
+                      color: _hudLog.contains("BŁĄD")
+                          ? Colors.red[900]?.withOpacity(0.95)
+                          : (_hudLog.contains("SUKCES")
+                                ? Colors.green[900]?.withOpacity(0.95)
+                                : Colors.black87),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _hudLog.contains("BŁĄD")
+                            ? Colors.redAccent
+                            : Colors.grey,
+                        width: 2,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black54, blurRadius: 10),
+                      ],
+                    ),
+                    child: Text(
+                      _hudLog,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-
+            );
+          },
+        ),
         // --- WYNIKI POP-UP ---
         if (_examResult.isNotEmpty)
           Align(
