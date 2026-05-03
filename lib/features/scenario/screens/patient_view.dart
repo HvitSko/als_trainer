@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../logic/game_engine.dart';
+import '../widgets/inventory/intubation_minigame_dialog.dart'; // WAŻNE!
 import 'dart:async';
 
 class PatientView extends StatefulWidget {
@@ -16,6 +17,16 @@ class _PatientViewState extends State<PatientView> {
   String? _equippedTool;
 
   void _showResult(String tool, String target) {
+    // SPECJALNY PRZYPADEK: RURKA ETI WYWALA MINIGRĘ!
+    if (tool == "Rurka ETI" && target == "Głowa") {
+      setState(() => _equippedTool = null);
+      showDialog(
+        context: context,
+        builder: (context) => IntubationMinigameDialog(engine: widget.engine),
+      );
+      return;
+    }
+
     String result = widget.engine.performTargetedExam(tool, target);
     setState(() => _examResult = result);
     _resultTimer?.cancel();
@@ -25,6 +36,7 @@ class _PatientViewState extends State<PatientView> {
   }
 
   IconData _getIconForTool(String tool) {
+    if (tool.contains("I-gel")) return Icons.masks;
     switch (tool) {
       case "Latarka":
         return Icons.highlight;
@@ -42,38 +54,37 @@ class _PatientViewState extends State<PatientView> {
         return Icons.waves;
       case "Folia NRC":
         return Icons.ac_unit;
+      case "Worek BVM":
+        return Icons.air;
+      case "Rurka ETI":
+        return Icons.straighten;
       default:
         return Icons.build;
     }
   }
 
-  // NOWA FUNKCJA: Inteligentne podpowiadanie procedur
   String _getDynamicLabel(String baseTarget) {
     if (_equippedTool == null) return baseTarget;
-
     if (_equippedTool == "USG: Hokus POCUS") {
-      if (baseTarget.contains("Klatka")) return "USG: Opłucna (Sliding)";
-      if (baseTarget == "Bok Prawy") return "USG: Morison / IVC";
-      if (baseTarget == "Bok Lewy") return "USG: Zachyłek śledzionowy";
-      if (baseTarget == "Nadbrzusze") return "USG: Serce (Podmostkowe)";
-      if (baseTarget == "Podbrzusze") return "USG: Pęcherz/Miednica";
+      if (baseTarget.contains("Klatka")) return "USG: Opłucna";
+      if (baseTarget == "Bok Prawy") return "USG: Morison";
+      if (baseTarget == "Bok Lewy") return "USG: Śledziona";
+      if (baseTarget == "Nadbrzusze") return "USG: Serce";
+      if (baseTarget == "Podbrzusze") return "USG: Miednica";
     } else if (_equippedTool == "Stetoskop") {
       if (baseTarget == "Nadbrzusze") return "Osłuchaj: Żołądek";
-      if (baseTarget.contains("Bok")) return "Osłuchaj: Podstawy Płuc";
-      if (baseTarget.contains("Klatka")) return "Osłuchaj: Szczyty/Środek";
+      if (baseTarget.contains("Bok")) return "Osłuchaj: Podstawy";
+      if (baseTarget.contains("Klatka")) return "Osłuchaj: Szczyty";
     } else if (_equippedTool == "Glukometr" ||
         _equippedTool == "Pulsoksymetr") {
       if (baseTarget.contains("Dłoń") || baseTarget.contains("Noga"))
-        return "Nakłuj / Załóż Klips";
+        return "Nakłuj / Klips";
+    } else if (_equippedTool == "Worek BVM" ||
+        _equippedTool == "Rurka ETI" ||
+        _equippedTool!.contains("I-gel")) {
+      if (baseTarget == "Głowa") return "ZABEZPIECZ DROGI";
     }
-
-    return baseTarget; // Domyślna nazwa strefy
-  }
-
-  @override
-  void dispose() {
-    _resultTimer?.cancel();
-    super.dispose();
+    return baseTarget;
   }
 
   @override
@@ -84,15 +95,12 @@ class _PatientViewState extends State<PatientView> {
           child: Image.asset(
             'assets/images/patient_body.png',
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => const Center(
-              child: Text("Brak grafiki!", style: TextStyle(color: Colors.red)),
-            ),
+            errorBuilder: (context, error, stackTrace) =>
+                const Center(child: Text("Brak grafiki!")),
           ),
         ),
 
-        // --- 2. ZNACZNIKI DIAGNOSTYCZNE (ANATOMIA SZCZEGÓŁOWA) ---
-        // X: Głowa (-0.85) -> Klatka (-0.45) -> Brzuch (-0.15) -> Nogi (0.50)
-        // Y: Góra ekranu (-0.5, prawa strona pacjenta) -> Dół ekranu (0.5, lewa strona pacjenta)
+        // --- ZNACZNIKI DIAGNOSTYCZNE ---
         Align(
           alignment: const Alignment(-0.85, -0.05),
           child: _buildDropZone("Głowa", 100, 100),
@@ -101,17 +109,14 @@ class _PatientViewState extends State<PatientView> {
           alignment: const Alignment(-0.65, -0.05),
           child: _buildDropZone("Szyja", 80, 80),
         ),
-
-        // Klatka rozbita
         Align(
           alignment: const Alignment(-0.45, -0.25),
-          child: _buildDropZone("Klatka Prawa", 100, 90),
-        ), // Prawa str. pacjenta (góra ekranu)
+          child: _buildDropZone("Klatka Lewa", 100, 90),
+        ),
         Align(
           alignment: const Alignment(-0.45, 0.20),
-          child: _buildDropZone("Klatka Lewa", 100, 90),
-        ), // Lewa str. pacjenta (dół ekranu)
-        // Brzuch rozbity
+          child: _buildDropZone("Klatka Prawa", 100, 90),
+        ),
         Align(
           alignment: const Alignment(-0.25, -0.05),
           child: _buildDropZone("Nadbrzusze", 110, 90),
@@ -120,46 +125,40 @@ class _PatientViewState extends State<PatientView> {
           alignment: const Alignment(0.05, -0.05),
           child: _buildDropZone("Podbrzusze", 110, 90),
         ),
-
-        // Boki (Morrison i Keller) - obok brzucha/klatki
         Align(
           alignment: const Alignment(-0.20, -0.40),
-          child: _buildDropZone("Bok Prawy", 90, 80),
+          child: _buildDropZone("Bok Lewy", 90, 80),
         ),
         Align(
           alignment: const Alignment(-0.20, 0.35),
-          child: _buildDropZone("Bok Lewy", 90, 80),
+          child: _buildDropZone("Bok Prawy", 90, 80),
         ),
-
-        // Ręce (Zgięcia łokciowe i Dłonie)
         Align(
           alignment: const Alignment(-0.35, -0.65),
-          child: _buildDropZone("Zgięcie Prawa", 80, 80),
-        ),
-        Align(
-          alignment: const Alignment(-0.35, 0.55),
           child: _buildDropZone("Zgięcie Lewa", 80, 80),
         ),
         Align(
+          alignment: const Alignment(-0.35, 0.55),
+          child: _buildDropZone("Zgięcie Prawa", 80, 80),
+        ),
+        Align(
           alignment: const Alignment(-0.10, -0.75),
-          child: _buildDropZone("Dłoń Prawa", 80, 80),
+          child: _buildDropZone("Dłoń Lewa", 80, 80),
         ),
         Align(
           alignment: const Alignment(-0.10, 0.65),
-          child: _buildDropZone("Dłoń Lewa", 80, 80),
+          child: _buildDropZone("Dłoń Prawa", 80, 80),
         ),
-
-        // Nogi rozbite
         Align(
           alignment: const Alignment(0.55, -0.25),
-          child: _buildDropZone("Noga Prawa", 140, 100),
+          child: _buildDropZone("Noga Lewa", 140, 100),
         ),
         Align(
           alignment: const Alignment(0.55, 0.15),
-          child: _buildDropZone("Noga Lewa", 140, 100),
+          child: _buildDropZone("Noga Prawa", 140, 100),
         ),
 
-        // --- 3. WYNIKI (POP-UP) ---
+        // --- WYNIKI POP-UP ---
         if (_examResult.isNotEmpty)
           Align(
             alignment: const Alignment(0.0, -0.8),
@@ -182,89 +181,40 @@ class _PatientViewState extends State<PatientView> {
             ),
           ),
 
-        // --- 4. INTERFEJS NARZĘDZI ---
+        // --- INTERFEJS NARZĘDZI (UKRYTY LUB WIDOCZNY) ---
         if (_equippedTool == null) ...[
-          Positioned(
-            bottom: 120,
-            left: 10,
-            right: 10,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black87,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.grey),
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Text(
-                          "TORBA: ",
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      _buildToolEquipButton("Oglądanie", Icons.visibility),
-                      _buildToolEquipButton("Latarka", Icons.highlight),
-                      _buildToolEquipButton(
-                        "Stetoskop",
-                        Icons.medical_services,
-                      ),
-                      _buildToolEquipButton("Termometr", Icons.thermostat),
-                      _buildToolEquipButton("Glukometr", Icons.bloodtype),
-                      _buildToolEquipButton(
-                        "Pulsoksymetr",
-                        Icons.monitor_heart,
-                      ),
-                      _buildToolEquipButton(
-                        "USG: Hokus POCUS",
-                        Icons.waves,
-                      ), // ZMIANA NAZWY
-                      _buildToolEquipButton("Folia NRC", Icons.ac_unit),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          if (widget.engine.state.isBagOpen) _buildBagOverlay(),
+          if (widget.engine.state.isAirwayMenuOpen) _buildAirwayOverlay(),
         ] else ...[
+          // KOSZ / ODKŁADANIE
           Positioned(
             bottom: 130,
             left: 30,
             child: DragTarget<String>(
               onAcceptWithDetails: (details) =>
                   setState(() => _equippedTool = null),
-              builder: (context, candidate, rejected) {
-                bool isHovered = candidate.isNotEmpty;
-                return Column(
-                  children: [
-                    Icon(
-                      Icons.backpack,
-                      size: isHovered ? 70 : 50,
-                      color: isHovered ? Colors.orangeAccent : Colors.grey,
+              builder: (context, candidate, rejected) => Column(
+                children: [
+                  Icon(
+                    Icons.backpack,
+                    size: candidate.isNotEmpty ? 70 : 50,
+                    color: candidate.isNotEmpty
+                        ? Colors.orangeAccent
+                        : Colors.grey,
+                  ),
+                  Text(
+                    "Odłóż",
+                    style: TextStyle(
+                      color: candidate.isNotEmpty
+                          ? Colors.orangeAccent
+                          : Colors.grey,
                     ),
-                    Text(
-                      "Odłóż do torby",
-                      style: TextStyle(
-                        color: isHovered ? Colors.orangeAccent : Colors.grey,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                );
-              },
+                  ),
+                ],
+              ),
             ),
           ),
+          // NARZĘDZIE W RĘKU
           Positioned(
             bottom: 130,
             right: 30,
@@ -318,6 +268,143 @@ class _PatientViewState extends State<PatientView> {
     );
   }
 
+  // NAKŁADKA: TORBA DIAGNOSTYCZNA
+  Widget _buildBagOverlay() {
+    return Positioned(
+      bottom: 120,
+      left: 10,
+      right: 10,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.orange),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Text(
+                    "TORBA: ",
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                _buildToolEquipButton("Oglądanie", Icons.visibility),
+                _buildToolEquipButton("Latarka", Icons.highlight),
+                _buildToolEquipButton("Stetoskop", Icons.medical_services),
+                _buildToolEquipButton("Termometr", Icons.thermostat),
+                _buildToolEquipButton("Glukometr", Icons.bloodtype),
+                _buildToolEquipButton("Pulsoksymetr", Icons.monitor_heart),
+                _buildToolEquipButton("USG: Hokus POCUS", Icons.waves),
+                _buildToolEquipButton("Folia NRC", Icons.ac_unit),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // NAKŁADKA: ODDECH I DROGI ODDECHOWE
+  Widget _buildAirwayOverlay() {
+    return Positioned(
+      bottom: 120,
+      left: 10,
+      right: 10,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.cyan),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[900],
+                  ),
+                  onPressed: widget.engine.performManualAirwayManeuver,
+                  child: const Text("Rękoczyn Udrożnienia"),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.yellow[900],
+                  ),
+                  onPressed: () {
+                    widget.engine.state.isCapnographyAttached = true;
+                    widget.engine.closeMenus();
+                  },
+                  child: const Text("Podłącz ETCO2"),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Row(
+              children: [
+                const Icon(Icons.air, color: Colors.cyan),
+                Expanded(
+                  child: Slider(
+                    value: widget.engine.state.oxygenFlow.toDouble(),
+                    min: 0,
+                    max: 15,
+                    divisions: 15,
+                    label: "${widget.engine.state.oxygenFlow} l/min",
+                    onChanged: (val) {
+                      widget.engine.setOxygenFlow(val.toInt());
+                      setState(() {});
+                    },
+                  ),
+                ),
+                Text(
+                  "${widget.engine.state.oxygenFlow} l/min",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Text(
+                      "SPRZĘT: ",
+                      style: TextStyle(
+                        color: Colors.cyan,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  _buildToolEquipButton("Worek BVM", Icons.masks),
+                  _buildToolEquipButton("I-gel #3", Icons.looks_3),
+                  _buildToolEquipButton("I-gel #4", Icons.looks_4),
+                  _buildToolEquipButton("I-gel #5", Icons.looks_5),
+                  _buildToolEquipButton("Rurka ETI", Icons.straighten),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildToolEquipButton(String name, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -327,7 +414,12 @@ class _PatientViewState extends State<PatientView> {
           IconButton(
             icon: Icon(icon, color: Colors.white, size: 28),
             tooltip: "Wyciągnij: $name",
-            onPressed: () => setState(() => _equippedTool = name),
+            onPressed: () {
+              setState(() {
+                _equippedTool = name;
+                widget.engine.closeMenus();
+              }); // ZAMYKA MENU PO WYCIĄGNIĘCIU!
+            },
           ),
           Text(name, style: const TextStyle(color: Colors.grey, fontSize: 9)),
         ],
@@ -335,7 +427,6 @@ class _PatientViewState extends State<PatientView> {
     );
   }
 
-  // Zmiana: Przyjmujemy tylko baseTarget, nazwa labelek generuje się dynamicznie!
   Widget _buildDropZone(String baseTarget, double width, double height) {
     return DragTarget<String>(
       onAcceptWithDetails: (details) => _showResult(details.data, baseTarget),
@@ -345,7 +436,6 @@ class _PatientViewState extends State<PatientView> {
           return SizedBox(width: width, height: height);
 
         String displayLabel = _getDynamicLabel(baseTarget);
-
         return Container(
           width: width,
           height: height,

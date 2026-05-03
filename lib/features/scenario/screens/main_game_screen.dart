@@ -260,20 +260,27 @@ class _MainGameScreenState extends State<MainGameScreen> {
                         icon: Icons.air,
                         color: Colors.cyan[800]!,
                         label: "Oddech",
-                        onPressed: () => showDialog(
-                          context: context,
-                          builder: (context) => AirwayDialog(engine: engine),
-                        ),
+                        onPressed: () {
+                          engine.toggleAirwayMenu();
+                          _pageController.animateToPage(
+                            1,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        },
                       ),
                       _buildOverlayButton(
                         icon: Icons.backpack,
                         color: Colors.orange[900]!,
-                        label: "Badaj",
-                        onPressed: () => _pageController.animateToPage(
-                          1,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        ),
+                        label: "Diagnostyka",
+                        onPressed: () {
+                          engine.toggleBag();
+                          _pageController.animateToPage(
+                            1,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        },
                       ),
                       _buildOverlayButton(
                         icon: Icons.psychology,

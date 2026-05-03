@@ -30,6 +30,8 @@ class AlsScenarioState {
   int totalElapsedGameTime = 0;
   int cprSecondsRemaining = 0;
   bool isCprActive = false;
+  bool isBagOpen = false;
+  bool isAirwayMenuOpen = false;
 
   int shocksDelivered = 0;
   bool isDefibCharged = false;

@@ -701,18 +701,34 @@ class GameEngine extends ChangeNotifier {
       if (target == "Nadbrzusze") {
         bool tamp = state.patient.hiddenCause == ReversibleCause.tamponade;
         _logEvent(
-          "USG: Projekcja podmostkowa. ${tamp ? 'PŁYN W OSIERDZIU!' : 'Brak płynu w worku osierdziowym.'}",
+          "USG: Podmostkowa. ${tamp ? 'PŁYN W OSIERDZIU!' : 'Brak płynu.'}",
         );
         notifyListeners();
         return "USG (Serce):\n${tamp ? 'PŁYN W OSIERDZIU!' : 'Norma'}";
       } else if (target.contains("Klatka")) {
+        bool isLeft = target.contains("Lew");
         bool pneumo =
             state.patient.hiddenCause == ReversibleCause.tensionPneumothorax;
-        _logEvent(
-          "USG: Ocena opłucnej ($target). ${pneumo ? 'BRAK SLIDINGU (Kod Kreskowy)!' : 'Objaw ślizgania obecny.'}",
-        );
-        notifyListeners();
-        return "USG (Opłucna):\n${pneumo ? 'Brak ślizgania! (Odma?)' : 'Ślizganie obecne'}";
+        bool rightMainstem =
+            (state.airwayStatus == AirwayType.endotracheal &&
+            state.intubationStatus == IntubationStatus.rightMainstem);
+
+        if (pneumo) {
+          // W przyszłości zrobimy odmę lewo/prawo stronną
+          _logEvent("USG: Opłucna ($target). BRAK SLIDINGU (Kod Kreskowy)!");
+          notifyListeners();
+          return "USG (Opłucna):\nBrak ślizgania! (Odma?)";
+        } else if (rightMainstem && isLeft) {
+          _logEvent(
+            "USG: Opłucna ($target). BRAK SLIDINGU! (Lewe płuco niewentylowane).",
+          );
+          notifyListeners();
+          return "USG (Opłucna):\nBrak ślizgania! (Rurka w oskrzelu?)";
+        } else {
+          _logEvent("USG: Opłucna ($target). Ślizganie obecne.");
+          notifyListeners();
+          return "USG (Opłucna):\nŚlizganie obecne";
+        }
       } else if (target == "Bok Prawy") {
         bool hypo = state.patient.hiddenCause == ReversibleCause.hypovolemia;
         _logEvent(
@@ -758,12 +774,81 @@ class GameEngine extends ChangeNotifier {
         return "$target:\nSkóra: ${state.patient.skinCondition}";
       }
     }
+    // --- NOWY BLOK: NARZĘDZIA ODDECHOWE (DRAG & DROP) ---
+    else if (tool == "Worek BVM" && target == "Głowa") {
+      state.airwayStatus = AirwayType.bvm;
+      _logEvent(
+        "AKCJA: Wdrożono wentylację workiem samorozprężalnym z maską twarzową (BVM).",
+      );
+      notifyListeners();
+      return "Worek (BVM):\nWentylacja w toku";
+    } else if (tool.startsWith("I-gel") && target == "Głowa") {
+      int size = int.parse(tool.split("#")[1]);
+      double weight = state.patient.weight;
+      bool isCorrect =
+          (size == 3 && weight < 50) ||
+          (size == 4 && weight >= 50 && weight <= 90) ||
+          (size == 5 && weight > 90);
+
+      state.airwayStatus = AirwayType.igel;
+      if (!isCorrect) {
+        _logEvent(
+          "BŁĄD: Założono I-gel rozm. $size dla pacjenta o wadze ${weight.toStringAsFixed(0)}kg! Masywna nieszczelność dróg oddechowych.",
+          isError: true,
+        );
+        state.patient.etCo2 = (state.patient.etCo2 * 0.5)
+            .toInt(); // Fizjologiczna kara za nieszczelność
+      } else {
+        _logEvent(
+          "AKCJA: Poprawnie zabezpieczono drogi oddechowe (I-gel rozm. $size).",
+        );
+      }
+      notifyListeners();
+      return "I-gel założony";
+    }
 
     _logEvent(
       "AKCJA: Próba użycia '$tool' na '$target'. Brak logicznej procedury EBM.",
       isError: true,
     );
     return "Niewłaściwe użycie sprzętu";
+  }
+
+  // --- KONTROLERY MENU UI ---
+  void toggleBag() {
+    state.isBagOpen = !state.isBagOpen;
+    if (state.isBagOpen) state.isAirwayMenuOpen = false; // Zamyka drugie menu
+    notifyListeners();
+  }
+
+  void toggleAirwayMenu() {
+    state.isAirwayMenuOpen = !state.isAirwayMenuOpen;
+    if (state.isAirwayMenuOpen) state.isBagOpen = false;
+    notifyListeners();
+  }
+
+  void closeMenus() {
+    state.isBagOpen = false;
+    state.isAirwayMenuOpen = false;
+    notifyListeners();
+  }
+
+  void performManualAirwayManeuver() async {
+    closeMenus();
+    _logEvent(
+      "AKCJA: Wykonano rękoczyn udrożnienia dróg oddechowych (uniesienie żuchwy/odchylenie głowy).",
+    );
+    notifyListeners();
+    await Future.delayed(const Duration(seconds: 3));
+    if (!state.patient.hasPulse) {
+      _logEvent(
+        "DIAGNOZA: Po udrożnieniu -> BRAK SAMODZIELNEGO ODDECHU.",
+        isError: true,
+      );
+    } else {
+      _logEvent("DIAGNOZA: Po udrożnieniu -> Pacjent oddycha.");
+    }
+    notifyListeners();
   }
 
   void evaluate4H4TCause(String cause) {
