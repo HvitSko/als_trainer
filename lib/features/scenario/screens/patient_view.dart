@@ -19,10 +19,58 @@ class _PatientViewState extends State<PatientView> {
   bool _showIvMenu = false; // NOWE: Czy pokazujemy rozmiary wenflonów?
   bool _showIgelMenu = false;
 
+  int _lastLogCount = 0;
+  String _hudLog = "";
+  Timer? _hudLogTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Rejestrujemy stan logów przy starcie
+    _lastLogCount = widget.engine.state.auditLog.length;
+    // Podpinamy ucho pod silnik gry
+    widget.engine.addListener(_onEngineChange);
+  }
+
+  @override
+  void dispose() {
+    // Odpinamy ucho, żeby nie wywołać wycieku pamięci!
+    widget.engine.removeListener(_onEngineChange);
+    _resultTimer?.cancel();
+    _hudLogTimer?.cancel();
+    super.dispose();
+  }
+
+  // Ta funkcja odpala się za każdym razem, gdy engine robi notifyListeners()
+  void _onEngineChange() {
+    if (!mounted) return;
+    if (widget.engine.state.auditLog.length > _lastLogCount) {
+      String newLog = widget.engine.state.auditLog.first;
+      // Wycinamy znacznik czasu, żeby było krócej na ekranie pacjenta
+      String cleanLog = newLog.contains("]")
+          ? newLog.substring(newLog.indexOf(']') + 2)
+          : newLog;
+
+      setState(() {
+        _hudLog = cleanLog;
+        _lastLogCount = widget.engine.state.auditLog.length;
+      });
+
+      _hudLogTimer?.cancel();
+      _hudLogTimer = Timer(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _hudLog = "");
+      });
+    }
+  }
+
   void _showResult(String tool, String target) {
-    // SPECJALNY PRZYPADEK: RURKA ETI WYWALA MINIGRĘ!
+    // SPECJALNY PRZYPADEK: RURKA ETI WYWALA MINIGRĘ I SPRAWDZA TLEN!
     if (tool == "Rurka ETI" && target == "Głowa") {
       setState(() => _equippedTool = null);
+
+      // Wywołujemy naszą nową funkcję z silnika!
+      widget.engine.validateIntubationPreoxygenation();
+
       showDialog(
         context: context,
         builder: (context) => IntubationMinigameDialog(engine: widget.engine),
@@ -168,6 +216,51 @@ class _PatientViewState extends State<PatientView> {
           alignment: const Alignment(0.55, 0.15),
           child: _buildDropZone("Noga Prawa", 140, 100),
         ),
+        // --- 5. GÓRNY HUD: POWIADOMIENIA Z DZIENNIKA (EBM) ---
+        if (_hudLog.isNotEmpty)
+          Positioned(
+            top: 20,
+            left: MediaQuery.of(context).size.width * 0.15,
+            right: MediaQuery.of(context).size.width * 0.15,
+            child: SafeArea(
+              child: AnimatedOpacity(
+                opacity: _hudLog.isNotEmpty ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _hudLog.contains("BŁĄD")
+                        ? Colors.red[900]?.withOpacity(0.95)
+                        : (_hudLog.contains("SUKCES")
+                              ? Colors.green[900]?.withOpacity(0.95)
+                              : Colors.black87),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _hudLog.contains("BŁĄD")
+                          ? Colors.redAccent
+                          : Colors.grey,
+                      width: 2,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black54, blurRadius: 10),
+                    ],
+                  ),
+                  child: Text(
+                    _hudLog,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
 
         // --- WYNIKI POP-UP ---
         if (_examResult.isNotEmpty)
@@ -393,11 +486,10 @@ class _PatientViewState extends State<PatientView> {
       left: 10,
       right: 10,
       child: Center(
-        // Wyśrodkujmy to!
         child: Container(
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.7,
-          ), // Nie pozwalamy mu się rozlać na cały ekran
+            maxWidth: MediaQuery.of(context).size.width * 0.75,
+          ),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.black87,
@@ -416,6 +508,17 @@ class _PatientViewState extends State<PatientView> {
                     ),
                     onPressed: widget.engine.performManualAirwayManeuver,
                     child: const Text("Rękoczyn Udrożnienia"),
+                  ),
+                  // NOWY PRZYCISK: PREOKSYGENACJA ZMARTWYCHWSTAŁA
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.lightBlue[700],
+                    ),
+                    onPressed: widget.engine.preoxygenate,
+                    child: const Text(
+                      "Preoksygenacja",
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
@@ -447,8 +550,14 @@ class _PatientViewState extends State<PatientView> {
                       divisions: 20,
                       label: "${widget.engine.state.oxygenFlow} l/min",
                       onChanged: (val) {
+                        // CICHA AKTUALIZACJA: Zmienia pozycję suwaka na ekranie, ale NIE wysyła info do logów EBM!
+                        setState(
+                          () => widget.engine.state.oxygenFlow = val.toInt(),
+                        );
+                      },
+                      onChangeEnd: (val) {
+                        // GŁOŚNA AKTUALIZACJA: Gdy puścisz palec, silnik dostaje info i wywala (bądź nie) błąd EBM.
                         widget.engine.setOxygenFlow(val.toInt());
-                        setState(() {});
                       },
                     ),
                   ),
@@ -465,7 +574,6 @@ class _PatientViewState extends State<PatientView> {
                 scrollDirection: Axis.horizontal,
                 child: _showIgelMenu
                     ? Row(
-                        // PODMENU I-GEL
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
@@ -492,7 +600,6 @@ class _PatientViewState extends State<PatientView> {
                         ],
                       )
                     : Row(
-                        // GŁÓWNE MENU SPRZĘTU ODDECHOWEGO
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Padding(
@@ -506,7 +613,6 @@ class _PatientViewState extends State<PatientView> {
                             ),
                           ),
                           _buildToolEquipButton("Worek BVM", Icons.masks),
-                          // PRZYCISK WYWOŁUJĄCY PODMENU I-GEL
                           Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 4.0,

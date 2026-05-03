@@ -6,7 +6,6 @@ import 'patient_view.dart';
 import 'monitor_view.dart';
 import 'feedback_screen.dart'; // ZARAZ GO STWORZYMY
 import '../widgets/inventory/ampularium.dart';
-import '../widgets/inventory/airway_dialog.dart';
 import '../widgets/inventory/h4t_dialog.dart';
 import 'package:flutter/services.dart'; // Dodaj ten import na górze pliku, żeby SystemNavigator zadziałał!
 
