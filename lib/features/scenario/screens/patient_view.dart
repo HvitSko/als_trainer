@@ -171,59 +171,59 @@ class _PatientViewState extends State<PatientView> {
 
         // --- ZNACZNIKI DIAGNOSTYCZNE ---
         Align(
-          alignment: const Alignment(-0.85, -0.05),
-          child: _buildDropZone("Głowa", 100, 100),
+          alignment: const Alignment(-0.88, -0.15),
+          child: _buildDropZone("Głowa", 120, 100),
         ),
         Align(
-          alignment: const Alignment(-0.65, -0.05),
+          alignment: const Alignment(-0.65, -0.12),
           child: _buildDropZone("Szyja", 80, 80),
         ),
         Align(
-          alignment: const Alignment(-0.45, -0.25),
+          alignment: const Alignment(-0.52, -0.32),
           child: _buildDropZone("Klatka Lewa", 100, 90),
         ),
         Align(
-          alignment: const Alignment(-0.45, 0.20),
+          alignment: const Alignment(-0.52, 0.10),
           child: _buildDropZone("Klatka Prawa", 100, 90),
         ),
         Align(
-          alignment: const Alignment(-0.25, -0.05),
-          child: _buildDropZone("Nadbrzusze", 110, 90),
+          alignment: const Alignment(-0.28, -0.12),
+          child: _buildDropZone("Nadbrzusze", 80, 90),
         ),
         Align(
-          alignment: const Alignment(0.05, -0.05),
-          child: _buildDropZone("Podbrzusze", 110, 90),
+          alignment: const Alignment(-0.12, -0.10),
+          child: _buildDropZone("Podbrzusze", 80, 90),
         ),
         Align(
-          alignment: const Alignment(-0.20, -0.40),
-          child: _buildDropZone("Bok Lewy", 90, 80),
+          alignment: const Alignment(-0.30, -0.35),
+          child: _buildDropZone("Bok Lewy", 90, 60),
         ),
         Align(
-          alignment: const Alignment(-0.20, 0.35),
-          child: _buildDropZone("Bok Prawy", 90, 80),
+          alignment: const Alignment(-0.30, 0.20),
+          child: _buildDropZone("Bok Prawy", 90, 60),
         ),
         Align(
-          alignment: const Alignment(-0.35, -0.65),
-          child: _buildDropZone("Zgięcie Lewa", 80, 80),
+          alignment: const Alignment(-0.26, -0.55),
+          child: _buildDropZone("Zgięcie Lewa", 70, 70),
         ),
         Align(
-          alignment: const Alignment(-0.35, 0.55),
+          alignment: const Alignment(-0.32, 0.48),
           child: _buildDropZone("Zgięcie Prawa", 80, 80),
         ),
         Align(
-          alignment: const Alignment(-0.10, -0.75),
+          alignment: const Alignment(0.10, -0.62),
           child: _buildDropZone("Dłoń Lewa", 80, 80),
         ),
         Align(
-          alignment: const Alignment(-0.10, 0.65),
+          alignment: const Alignment(0.10, 0.70),
           child: _buildDropZone("Dłoń Prawa", 80, 80),
         ),
         Align(
-          alignment: const Alignment(0.55, -0.25),
+          alignment: const Alignment(0.85, -0.25),
           child: _buildDropZone("Noga Lewa", 140, 100),
         ),
         Align(
-          alignment: const Alignment(0.55, 0.15),
+          alignment: const Alignment(0.85, 0.35),
           child: _buildDropZone("Noga Prawa", 140, 100),
         ),
         // --- 5. GÓRNY HUD: POWIADOMIENIA Z DZIENNIKA (EBM) ---

@@ -305,7 +305,7 @@ class GameEngine extends ChangeNotifier {
         );
       } else if (flush != "0.9% NaCl") {
         _logEvent(
-          "BŁĄD EBM: Adrenalinę w NZK trzeba popić bolusem ok. 20ml NaCl, żeby dopchnąć ją do krążenia centralnego! Podałeś z: $flush.",
+          "BŁĄD EBM: Adrenalinę w NZK trzeba podać z 0.9% NaCl, żeby dopchnąć ją do krążenia centralnego! Podałeś z: $flush.",
           isError: true,
         );
       } else {
@@ -726,18 +726,27 @@ class GameEngine extends ChangeNotifier {
         bool rightMainstem =
             (state.airwayStatus == AirwayType.endotracheal &&
             state.intubationStatus == IntubationStatus.rightMainstem);
+        bool isVentilated =
+            state.airwayStatus == AirwayType.bvm ||
+            state.airwayStatus == AirwayType.igel ||
+            state.airwayStatus == AirwayType.endotracheal;
 
-        if (pneumo) {
+        if (!isVentilated) {
+          // BRAK WENTYLACJI = BRAK RUCHU PŁUC = BRAK SLIDINGU!
+          _logEvent(
+            "USG: Opłucna ($target). BRAK SLIDINGU! (Pacjent nie oddycha i nie jest wentylowany - płuca się nie poruszają).",
+          );
+          notifyListeners();
+          return "USG (Opłucna):\nBrak ślizgania!";
+        } else if (pneumo) {
           // W przyszłości zrobimy odmę lewo/prawo stronną
           _logEvent("USG: Opłucna ($target). BRAK SLIDINGU (Kod Kreskowy)!");
           notifyListeners();
-          return "USG (Opłucna):\nBrak ślizgania! (Odma?)";
+          return "USG (Opłucna):\nBrak ślizgania!";
         } else if (rightMainstem && isLeft) {
-          _logEvent(
-            "USG: Opłucna ($target). BRAK SLIDINGU! (Lewe płuco niewentylowane).",
-          );
+          _logEvent("USG: Opłucna ($target). BRAK SLIDINGU!");
           notifyListeners();
-          return "USG (Opłucna):\nBrak ślizgania! (Rurka w oskrzelu?)";
+          return "USG (Opłucna):\nBrak ślizgania!";
         } else {
           _logEvent("USG: Opłucna ($target). Ślizganie obecne.");
           notifyListeners();
@@ -746,7 +755,7 @@ class GameEngine extends ChangeNotifier {
       } else if (target == "Bok Prawy") {
         bool hypo = state.patient.hiddenCause == ReversibleCause.hypovolemia;
         _logEvent(
-          "USG: Zachyłek Morisona / IVC. ${hypo ? 'IVC Zapadnięta (Hipowolemia)!' : 'Brak wolnego płynu, IVC w normie.'}",
+          "USG: Zachyłek Morisona / IVC. ${hypo ? 'IVC Zapadnięta' : 'Brak wolnego płynu, IVC w normie.'}",
         );
         notifyListeners();
         return "USG (Morison):\n${hypo ? 'IVC Zapadnięta!' : 'Czysto'}";
