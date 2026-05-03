@@ -503,19 +503,6 @@ class GameEngine extends ChangeNotifier {
 
   void startIntubationMinigame() {
     if (state.intubationAttemptInProgress) return;
-
-    // Stara-nowa weryfikacja EBM!
-    if (!state.isPreoxygenated) {
-      _logEvent(
-        "KRYTYCZNY BŁĄD EBM: Brak preoksygenacji przed ETI! Ryzyko gwałtownej desaturacji!",
-        isError: true,
-      );
-      // DODAJEMY KARĘ OD INSTRUKTORA:
-      state.instructorFeedback.add(
-        "DROGI ODDECHOWE: Zaintubowałeś pacjenta bez preoksygenacji. Zawsze natleniaj pacjenta biernie przed próbą ETI!",
-      );
-    }
-
     state.intubationAttemptInProgress = true;
     _logEvent("AKCJA: Rozpoczęto wprowadzanie laryngoskopu (Minigra ETI).");
     notifyListeners();
@@ -860,6 +847,25 @@ class GameEngine extends ChangeNotifier {
     state.isBagOpen = false;
     state.isAirwayMenuOpen = false;
     notifyListeners();
+  }
+
+  // --- WERYFIKACJA EBM PRZED OTWARCIEM MINIGRY ETI ---
+  void verifyPreoxygenationBeforeETI() {
+    if (!state.isPreoxygenated) {
+      _logEvent(
+        "KRYTYCZNY BŁĄD EBM: Próba ETI bez preoksygenacji (100% O2)! Ryzyko gwałtownej desaturacji!",
+        isError: true,
+      );
+      // Sprawdzamy, czy już tego nie dodaliśmy, żeby nie spamować Instruktora
+      if (!state.instructorFeedback.any(
+        (msg) => msg.contains("bez preoksygenacji"),
+      )) {
+        state.instructorFeedback.add(
+          "DROGI ODDECHOWE: Zaintubowałeś pacjenta bez preoksygenacji. Zawsze natleniaj biernie przed próbą ETI!",
+        );
+      }
+      notifyListeners();
+    }
   }
 
   void performManualAirwayManeuver() async {

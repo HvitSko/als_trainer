@@ -67,10 +67,24 @@ class _PatientViewState extends State<PatientView> {
     // SPECJALNY PRZYPADEK: RURKA ETI WYWALA MINIGRĘ I SPRAWDZA TLEN!
     if (tool == "Rurka ETI" && target == "Głowa") {
       setState(() => _equippedTool = null);
-      showDialog(
-        context: context,
-        builder: (context) => IntubationMinigameDialog(engine: widget.engine),
-      );
+
+      if (!widget.engine.state.isPreoxygenated) {
+        widget.engine.verifyPreoxygenationBeforeETI();
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) =>
+                  IntubationMinigameDialog(engine: widget.engine),
+            );
+          }
+        });
+      } else {
+        showDialog(
+          context: context,
+          builder: (context) => IntubationMinigameDialog(engine: widget.engine),
+        );
+      }
       return;
     }
     if (tool.startsWith("Kaniula") && target.contains("Zgięcie")) {
