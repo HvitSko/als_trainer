@@ -117,6 +117,9 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
     return Dialog(
       backgroundColor: Colors.transparent, // Magia!
       child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.55,
+        ),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.9),
@@ -145,7 +148,7 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
             const Divider(color: Colors.blueAccent),
             DropdownButton<DrugInfo>(
               isExpanded: true,
-              dropdownColor: Colors.grey[850],
+              dropdownColor: Colors.black87,
               value: _selectedDrug,
               hint: const Text(
                 "Wybierz lek...",
@@ -210,8 +213,16 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
                 style: TextStyle(color: Colors.grey),
               ),
               DropdownButton<String>(
-                isExpanded: true,
-                dropdownColor: Colors.grey[850],
+                dropdownColor: Colors.black87, // Ciemne tło rozwijanej listy
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ), // Biały tekst w liście
+                iconEnabledColor: Colors.blueAccent, // Kolor strzałki
+                underline: Container(
+                  height: 1,
+                  color: Colors.blueAccent,
+                ), // Ładna, cienka linia pod spodem
                 value: _selectedFlush,
                 items: _flushes
                     .map(

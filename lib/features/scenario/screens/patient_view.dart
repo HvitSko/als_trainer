@@ -17,6 +17,7 @@ class _PatientViewState extends State<PatientView> {
   Timer? _resultTimer;
   String? _equippedTool;
   bool _showIvMenu = false; // NOWE: Czy pokazujemy rozmiary wenflonów?
+  bool _showIgelMenu = false;
 
   void _showResult(String tool, String target) {
     // SPECJALNY PRZYPADEK: RURKA ETI WYWALA MINIGRĘ!
@@ -391,87 +392,153 @@ class _PatientViewState extends State<PatientView> {
       bottom: 120,
       left: 10,
       right: 10,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.black87,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.cyan),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[900],
-                  ),
-                  onPressed: widget.engine.performManualAirwayManeuver,
-                  child: const Text("Rękoczyn Udrożnienia"),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.yellow[900],
-                  ),
-                  onPressed: () {
-                    widget.engine.state.isCapnographyAttached = true;
-                    widget.engine.closeMenus();
-                  },
-                  child: const Text("Podłącz ETCO2"),
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Row(
-              children: [
-                const Icon(Icons.air, color: Colors.cyan),
-                Expanded(
-                  child: Slider(
-                    value: widget.engine.state.oxygenFlow.toDouble(),
-                    min: 0,
-                    max: 20,
-                    divisions: 20,
-                    label: "${widget.engine.state.oxygenFlow} l/min",
-                    onChanged: (val) {
-                      widget.engine.setOxygenFlow(val.toInt());
-                      setState(() {});
-                    },
-                  ),
-                ),
-                Text(
-                  "${widget.engine.state.oxygenFlow} l/min",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
+      child: Center(
+        // Wyśrodkujmy to!
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.7,
+          ), // Nie pozwalamy mu się rozlać na cały ekran
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.cyan),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text(
-                      "SPRZĘT: ",
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[900],
+                    ),
+                    onPressed: widget.engine.performManualAirwayManeuver,
+                    child: const Text("Rękoczyn Udrożnienia"),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.yellow[900],
+                    ),
+                    onPressed: () {
+                      widget.engine.state.isCapnographyAttached = true;
+                      widget.engine.closeMenus();
+                    },
+                    child: const Text(
+                      "Podłącz ETCO2",
                       style: TextStyle(
-                        color: Colors.cyan,
+                        color: Colors.black,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  _buildToolEquipButton("Worek BVM", Icons.masks),
-                  _buildToolEquipButton("I-gel #3", Icons.looks_3),
-                  _buildToolEquipButton("I-gel #4", Icons.looks_4),
-                  _buildToolEquipButton("I-gel #5", Icons.looks_5),
-                  _buildToolEquipButton("Rurka ETI", Icons.straighten),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 5),
+              Row(
+                children: [
+                  const Icon(Icons.air, color: Colors.cyan),
+                  Expanded(
+                    child: Slider(
+                      value: widget.engine.state.oxygenFlow.toDouble(),
+                      min: 0,
+                      max: 20,
+                      divisions: 20,
+                      label: "${widget.engine.state.oxygenFlow} l/min",
+                      onChanged: (val) {
+                        widget.engine.setOxygenFlow(val.toInt());
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  Text(
+                    "${widget.engine.state.oxygenFlow} l/min",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: _showIgelMenu
+                    ? Row(
+                        // PODMENU I-GEL
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                            ),
+                            onPressed: () =>
+                                setState(() => _showIgelMenu = false),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Text(
+                              "WYBIERZ ROZMIAR: ",
+                              style: TextStyle(
+                                color: Colors.cyan,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          _buildToolEquipButton("I-gel #3", Icons.looks_3),
+                          _buildToolEquipButton("I-gel #4", Icons.looks_4),
+                          _buildToolEquipButton("I-gel #5", Icons.looks_5),
+                        ],
+                      )
+                    : Row(
+                        // GŁÓWNE MENU SPRZĘTU ODDECHOWEGO
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Text(
+                              "SPRZĘT: ",
+                              style: TextStyle(
+                                color: Colors.cyan,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          _buildToolEquipButton("Worek BVM", Icons.masks),
+                          // PRZYCISK WYWOŁUJĄCY PODMENU I-GEL
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4.0,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.looks_one,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                  onPressed: () =>
+                                      setState(() => _showIgelMenu = true),
+                                ),
+                                const Text(
+                                  "I-gel (SGA)",
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _buildToolEquipButton("Rurka ETI", Icons.straighten),
+                        ],
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
