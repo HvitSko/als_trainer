@@ -32,7 +32,7 @@ class AlsScenarioState {
   bool isCprActive = false;
   bool isBagOpen = false;
   bool isAirwayMenuOpen = false;
-
+  bool isIvInserted = false;
   int shocksDelivered = 0;
   bool isDefibCharged = false;
   bool isDefibCharging = false;

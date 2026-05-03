@@ -114,32 +114,35 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: Colors.grey[900],
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text(
-            'Ampularium ZRM',
-            style: TextStyle(color: Colors.blueAccent),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.redAccent, size: 32),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-      content: SingleChildScrollView(
+    return Dialog(
+      backgroundColor: Colors.transparent, // Magia!
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.blueAccent, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blueAccent.withOpacity(0.3),
+              blurRadius: 15,
+            ),
+          ],
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              "1. Wybierz ampułkę/płyn:",
-              style: TextStyle(color: Colors.grey),
+              "AMPULARIUM ZRM",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
+            const Divider(color: Colors.blueAccent),
             DropdownButton<DrugInfo>(
               isExpanded: true,
               dropdownColor: Colors.grey[850],

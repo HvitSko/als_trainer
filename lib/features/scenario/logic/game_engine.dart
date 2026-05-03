@@ -281,6 +281,17 @@ class GameEngine extends ChangeNotifier {
 
     state.administeredDrugs.add(drugName);
     state.preparedDrugs.removeAt(index);
+    // BLOKADA: Brak wkłucia = Brak leków!
+    if (!state.isIvInserted) {
+      _logEvent(
+        "KRYTYCZNY BŁĄD EBM: Próba podaży leku dożylnego ($drugName) bez dostępu naczyniowego (brak wkłucia IV/IO)!",
+        isError: true,
+      );
+      state.instructorFeedback.add(
+        "FARMACJA: Wylałeś $drugName na pacjenta. Musisz najpierw uzyskać dostęp naczyniowy (wenflon).",
+      );
+      return;
+    }
 
     bool isShockable =
         state.monitorRhythm == PatientRhythm.vf ||
@@ -800,6 +811,8 @@ class GameEngine extends ChangeNotifier {
       }
       notifyListeners();
       return "I-gel założony";
+    } else if (tool.startsWith("Kaniula") && target.contains("Zgięcie")) {
+      return "IV_MINIGAME";
     }
 
     _logEvent(

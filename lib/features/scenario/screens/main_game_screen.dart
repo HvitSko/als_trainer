@@ -272,7 +272,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
                       _buildOverlayButton(
                         icon: Icons.backpack,
                         color: Colors.orange[900]!,
-                        label: "Diagnostyka",
+                        label: "Torba/Diagnostyka",
                         onPressed: () {
                           engine.toggleBag();
                           _pageController.animateToPage(

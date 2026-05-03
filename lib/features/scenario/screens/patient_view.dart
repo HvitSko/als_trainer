@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../logic/game_engine.dart';
 import '../widgets/inventory/intubation_minigame_dialog.dart'; // WAŻNE!
+import '../widgets/inventory/iv_minigame_dialog.dart';
 import 'dart:async';
 
 class PatientView extends StatefulWidget {
@@ -15,6 +16,7 @@ class _PatientViewState extends State<PatientView> {
   String _examResult = "";
   Timer? _resultTimer;
   String? _equippedTool;
+  bool _showIvMenu = false; // NOWE: Czy pokazujemy rozmiary wenflonów?
 
   void _showResult(String tool, String target) {
     // SPECJALNY PRZYPADEK: RURKA ETI WYWALA MINIGRĘ!
@@ -23,6 +25,14 @@ class _PatientViewState extends State<PatientView> {
       showDialog(
         context: context,
         builder: (context) => IntubationMinigameDialog(engine: widget.engine),
+      );
+      return;
+    }
+    if (tool.startsWith("Kaniula") && target.contains("Zgięcie")) {
+      setState(() => _equippedTool = null);
+      showDialog(
+        context: context,
+        builder: (_) => IvMinigameDialog(engine: widget.engine),
       );
       return;
     }
@@ -284,29 +294,91 @@ class _PatientViewState extends State<PatientView> {
           ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Text(
-                    "TORBA: ",
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
-                    ),
+            child: _showIvMenu
+                ? Row(
+                    // PODMENU WENFLONÓW
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => setState(() => _showIvMenu = false),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text(
+                          "WYBIERZ ROZMIAR: ",
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      _buildToolEquipButton(
+                        "Kaniula 14G (Pomarańczowa)",
+                        Icons.colorize,
+                      ),
+                      _buildToolEquipButton(
+                        "Kaniula 18G (Zielona)",
+                        Icons.colorize,
+                      ),
+                      _buildToolEquipButton(
+                        "Kaniula 20G (Różowa)",
+                        Icons.colorize,
+                      ),
+                    ],
+                  )
+                : Row(
+                    // GŁÓWNA TORBA
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text(
+                          "TORBA: ",
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      _buildToolEquipButton("Oglądanie", Icons.visibility),
+                      _buildToolEquipButton("Latarka", Icons.highlight),
+                      _buildToolEquipButton(
+                        "Stetoskop",
+                        Icons.medical_services,
+                      ),
+                      _buildToolEquipButton("Termometr", Icons.thermostat),
+                      _buildToolEquipButton("Glukometr", Icons.bloodtype),
+                      _buildToolEquipButton(
+                        "Pulsoksymetr",
+                        Icons.monitor_heart,
+                      ),
+                      _buildToolEquipButton("USG: Hokus POCUS", Icons.waves),
+                      _buildToolEquipButton("Folia NRC", Icons.ac_unit),
+                      // TEN PRZYCISK OTWIERA PODMENU ZAMIAST WYPOSAŻAĆ
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.vaccines,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _showIvMenu = true),
+                            ),
+                            const Text(
+                              "Kaniula IV",
+                              style: TextStyle(color: Colors.grey, fontSize: 9),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                _buildToolEquipButton("Oglądanie", Icons.visibility),
-                _buildToolEquipButton("Latarka", Icons.highlight),
-                _buildToolEquipButton("Stetoskop", Icons.medical_services),
-                _buildToolEquipButton("Termometr", Icons.thermostat),
-                _buildToolEquipButton("Glukometr", Icons.bloodtype),
-                _buildToolEquipButton("Pulsoksymetr", Icons.monitor_heart),
-                _buildToolEquipButton("USG: Hokus POCUS", Icons.waves),
-                _buildToolEquipButton("Folia NRC", Icons.ac_unit),
-              ],
-            ),
           ),
         ),
       ),
@@ -359,8 +431,8 @@ class _PatientViewState extends State<PatientView> {
                   child: Slider(
                     value: widget.engine.state.oxygenFlow.toDouble(),
                     min: 0,
-                    max: 15,
-                    divisions: 15,
+                    max: 20,
+                    divisions: 20,
                     label: "${widget.engine.state.oxygenFlow} l/min",
                     onChanged: (val) {
                       widget.engine.setOxygenFlow(val.toInt());
