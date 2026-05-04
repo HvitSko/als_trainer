@@ -77,73 +77,77 @@ class _MainGameScreenState extends State<MainGameScreen> {
                   ],
                 ),
 
-                // WARSTWA 3: Wskaźnik ekranów
-                Positioned(
-                  bottom: 110,
-                  left: 0,
-                  right: 0,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueGrey[900]?.withOpacity(
-                            0.85,
+                // WARSTWA 3: SZYBKA NAWIGACJA (Przyciski nad narzędziami)
+                if (false)
+                  Positioned(
+                    bottom: 110,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueGrey[900]?.withOpacity(
+                              0.85,
+                            ),
+                            foregroundColor: Colors.white,
+                            shape: const StadiumBorder(),
+                            side: const BorderSide(
+                              color: Colors.cyan,
+                              width: 1,
+                            ),
                           ),
-                          foregroundColor: Colors.white,
-                          shape: const StadiumBorder(),
-                          side: const BorderSide(color: Colors.cyan, width: 1),
-                        ),
-                        icon: const Icon(
-                          Icons.monitor_heart,
-                          size: 18,
-                          color: Colors.cyanAccent,
-                        ),
-                        label: const Text(
-                          "MONITOR",
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        onPressed: () {
-                          _pageController.animateToPage(
-                            0,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 20),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueGrey[900]?.withOpacity(
-                            0.85,
+                          icon: const Icon(
+                            Icons.monitor_heart,
+                            size: 18,
+                            color: Colors.cyanAccent,
                           ),
-                          foregroundColor: Colors.white,
-                          shape: const StadiumBorder(),
-                          side: const BorderSide(
+                          label: const Text(
+                            "MONITOR",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: () {
+                            _pageController.animateToPage(
+                              0,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 20),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueGrey[900]?.withOpacity(
+                              0.85,
+                            ),
+                            foregroundColor: Colors.white,
+                            shape: const StadiumBorder(),
+                            side: const BorderSide(
+                              color: Colors.greenAccent,
+                              width: 1,
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.person,
+                            size: 18,
                             color: Colors.greenAccent,
-                            width: 1,
                           ),
+                          label: const Text(
+                            "PACJENT",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: () {
+                            _pageController.animateToPage(
+                              1,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          },
                         ),
-                        icon: const Icon(
-                          Icons.person,
-                          size: 18,
-                          color: Colors.greenAccent,
-                        ),
-                        label: const Text(
-                          "PACJENT",
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        onPressed: () {
-                          _pageController.animateToPage(
-                            1,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
                 // --- WARSTWA: GLOBALNY TIMER RKO ---
                 if (engine.state.isCprActive)
                   Positioned(

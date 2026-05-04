@@ -14,6 +14,7 @@ class PatientView extends StatefulWidget {
 
 class _PatientViewState extends State<PatientView> {
   String _examResult = "";
+  String _hoveredZone = "";
   Timer? _resultTimer;
   String? _equippedTool;
   bool _showIvMenu = false; // NOWE: Czy pokazujemy rozmiary wenflonów?
@@ -236,6 +237,43 @@ class _PatientViewState extends State<PatientView> {
                 alignment: const Alignment(0.85, 0.35),
                 child: _buildDropZone("Noga Prawa", 140, 100),
               ),
+              // --- NOWOŚĆ: ETYKIETA "GRUBY PALEC" (Fat Finger HUD) ---
+              if (_hoveredZone.isNotEmpty && _equippedTool != null)
+                Positioned(
+                  top: 90, // Pojawi się bezpiecznie pod głównym HUDem
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green[900]?.withOpacity(0.95),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: Colors.greenAccent,
+                            width: 2,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black54, blurRadius: 15),
+                          ],
+                        ),
+                        child: Text(
+                          _hoveredZone, // Magicznie wyświetla to, co zasłania palec!
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               // --- 5. GÓRNY HUD: POWIADOMIENIA Z DZIENNIKA (EBM) ---
               Builder(
                 builder: (context) {
@@ -717,17 +755,30 @@ class _PatientViewState extends State<PatientView> {
     double originalWidth,
     double originalHeight,
   ) {
-    double scaleFactor = 0.6;
+    double scaleFactor = 0.6; // Twoje wspaniałe zmniejszenie hitboxów
     double width = originalWidth * scaleFactor;
     double height = originalHeight * scaleFactor;
+    String displayLabel = _getDynamicLabel(baseTarget);
+
     return DragTarget<String>(
-      onAcceptWithDetails: (details) => _showResult(details.data, baseTarget),
+      // Gdy palec WCHODZI nad hitbox:
+      onWillAcceptWithDetails: (details) {
+        setState(() => _hoveredZone = displayLabel);
+        return true; // Musi zwrócić true, żeby zaakceptować upuszczenie!
+      },
+      // Gdy palec UCIEKA z hitboxa:
+      onLeave: (data) {
+        setState(() => _hoveredZone = "");
+      },
+      // Gdy upuścisz narzędzie na hitbox:
+      onAcceptWithDetails: (details) {
+        setState(() => _hoveredZone = ""); // Czyścimy napis z góry ekranu
+        _showResult(details.data, baseTarget); // Odpalamy logikę!
+      },
       builder: (context, candidateData, rejectedData) {
         bool isHovered = candidateData.isNotEmpty;
         if (_equippedTool == null)
           return SizedBox(width: width, height: height);
-
-        String displayLabel = _getDynamicLabel(baseTarget);
 
         return Container(
           width: width,
@@ -742,19 +793,7 @@ class _PatientViewState extends State<PatientView> {
             ),
             borderRadius: BorderRadius.circular(100),
           ),
-          child: isHovered
-              ? Center(
-                  child: Text(
-                    displayLabel,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      backgroundColor: Colors.black45,
-                    ),
-                  ),
-                )
-              : null,
+          // Magia! Zero tekstu w środku! Zlikwidowaliśmy problem grubego palca.
         );
       },
     );
