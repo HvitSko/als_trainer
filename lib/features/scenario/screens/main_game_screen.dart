@@ -82,29 +82,66 @@ class _MainGameScreenState extends State<MainGameScreen> {
                   bottom: 110,
                   left: 0,
                   right: 0,
-                  child: IgnorePointer(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.monitor_heart,
-                          color: Colors.white.withOpacity(0.5),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueGrey[900]?.withOpacity(
+                            0.85,
+                          ),
+                          foregroundColor: Colors.white,
+                          shape: const StadiumBorder(),
+                          side: const BorderSide(color: Colors.cyan, width: 1),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          "< PRZESUŃ EKRAN >",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontWeight: FontWeight.bold,
+                        icon: const Icon(
+                          Icons.monitor_heart,
+                          size: 18,
+                          color: Colors.cyanAccent,
+                        ),
+                        label: const Text(
+                          "MONITOR",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () {
+                          _pageController.animateToPage(
+                            0,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 20),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueGrey[900]?.withOpacity(
+                            0.85,
+                          ),
+                          foregroundColor: Colors.white,
+                          shape: const StadiumBorder(),
+                          side: const BorderSide(
+                            color: Colors.greenAccent,
+                            width: 1,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Icon(
+                        icon: const Icon(
                           Icons.person,
-                          color: Colors.white.withOpacity(0.5),
+                          size: 18,
+                          color: Colors.greenAccent,
                         ),
-                      ],
-                    ),
+                        label: const Text(
+                          "PACJENT",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () {
+                          _pageController.animateToPage(
+                            1,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
                 // --- WARSTWA: GLOBALNY TIMER RKO ---

@@ -712,7 +712,14 @@ class _PatientViewState extends State<PatientView> {
     );
   }
 
-  Widget _buildDropZone(String baseTarget, double width, double height) {
+  Widget _buildDropZone(
+    String baseTarget,
+    double originalWidth,
+    double originalHeight,
+  ) {
+    double scaleFactor = 0.6;
+    double width = originalWidth * scaleFactor;
+    double height = originalHeight * scaleFactor;
     return DragTarget<String>(
       onAcceptWithDetails: (details) => _showResult(details.data, baseTarget),
       builder: (context, candidateData, rejectedData) {
@@ -721,6 +728,7 @@ class _PatientViewState extends State<PatientView> {
           return SizedBox(width: width, height: height);
 
         String displayLabel = _getDynamicLabel(baseTarget);
+
         return Container(
           width: width,
           height: height,
