@@ -166,8 +166,8 @@ class _PatientViewState extends State<PatientView> {
       child: Center(
         child: SizedBox(
           width:
-              1200, // Złota zasada EBM dla UI: stała szerokość płótna! (Dostosuj jeśli ucięło Ci nogi)
-          height: 600, // Stała wysokość płótna!
+              1536, // Złota zasada EBM dla UI: stała szerokość płótna! (Dostosuj jeśli ucięło Ci nogi)
+          height: 1024, // Stała wysokość płótna!
           child: Stack(
             children: [
               Positioned.fill(

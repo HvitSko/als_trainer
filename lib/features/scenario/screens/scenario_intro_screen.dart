@@ -65,8 +65,9 @@ class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
                   Colors.cyanAccent,
                 ),
 
-                const Spacer(),
-
+                const SizedBox(
+                  height: 40,
+                ), // Sztywny, bezpieczny odstęp, z którym Flutter sobie poradzi
                 // --- NOWY BLOK WYBORU TRYBU ---
                 const Text(
                   "WYBIERZ TRYB SYMULACJI:",
