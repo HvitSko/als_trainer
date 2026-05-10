@@ -37,27 +37,13 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
     DrugInfo("0.9% NaCl (Amp. 10ml)", "10 ml", 1.0, "ml", 10.0, 1.0),
     DrugInfo("0.9% NaCl (Kroplówka)", "500 ml", 1.0, "ml", 500.0, 250.0),
     DrugInfo("5% Glukoza (Kroplówka)", "250 ml", 1.0, "ml", 250.0, 250.0),
-    DrugInfo(
-      "20% Glukoza",
-      "10 ml",
-      1.0,
-      "ml",
-      50.0,
-      10.0,
-    ), // Np. podajemy 5x10ml
+    DrugInfo("20% Glukoza", "10 ml", 1.0, "ml", 50.0, 10.0),
     DrugInfo("Adenozyna", "6 mg / 2 ml", 3.0, "mg", 2.0, 1.0),
     DrugInfo("Adrenalina", "1 mg / 1 ml", 1.0, "mg", 5.0, 1.0),
     DrugInfo("Amiodaron", "150 mg / 3 ml", 50.0, "mg", 6.0, 3.0),
     DrugInfo("Atropina", "1 mg / 1 ml", 1.0, "mg", 3.0, 0.5),
     DrugInfo("Budezonid", "1 mg / 2 ml (Nebulizacja)", 0.5, "mg", 4.0, 2.0),
-    DrugInfo(
-      "Captopril",
-      "25 mg (Tabletka)",
-      25.0,
-      "mg",
-      2.0,
-      0.5,
-    ), // Suwak dla połowy
+    DrugInfo("Captopril", "25 mg (Tabletka)", 25.0, "mg", 2.0, 0.5),
     DrugInfo("Clonazepam", "1 mg / 1 ml", 1.0, "mg", 2.0, 0.5),
     DrugInfo("Deksametazon", "8 mg / 2 ml", 4.0, "mg", 2.0, 1.0),
     DrugInfo("Diazepam", "10 mg / 2 ml", 5.0, "mg", 2.0, 1.0),
@@ -115,10 +101,12 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.transparent, // Magia!
+      backgroundColor: Colors.transparent,
       child: Container(
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.55,
+          // Dodane zabezpieczenie: Okienko nie może być wyższe niż 85% ekranu telefonu!
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -132,144 +120,158 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              "AMPULARIUM ZRM",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const Divider(color: Colors.blueAccent),
-            DropdownButton<DrugInfo>(
-              isExpanded: true,
-              dropdownColor: Colors.black87,
-              value: _selectedDrug,
-              hint: const Text(
-                "Wybierz lek...",
-                style: TextStyle(color: Colors.white54),
-              ),
-              items: _drugs.map((drug) {
-                return DropdownMenuItem(
-                  value: drug,
-                  child: Text(
-                    "${drug.name} (${drug.concentration})",
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                );
-              }).toList(),
-              onChanged: (val) {
-                setState(() {
-                  _selectedDrug = val;
-                  _selectedVolume =
-                      val!.step; // Domyślnie ustawiamy na pierwszy krok
-                });
-              },
-            ),
-            const SizedBox(height: 20),
-
-            if (_selectedDrug != null) ...[
+        // MAGIA SKIPPY'EGO: Tu jest ten SingleChildScrollView, którego brakowało!
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // Ważne dla układu okna!
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               const Text(
-                "2. Pobierz objętość (Suwak):",
-                style: TextStyle(color: Colors.grey),
-              ),
-              Slider(
-                value: _selectedVolume,
-                min: _selectedDrug!.step,
-                max: _selectedDrug!.maxVolume,
-                divisions:
-                    ((_selectedDrug!.maxVolume - _selectedDrug!.step) /
-                                _selectedDrug!.step)
-                            .round() >
-                        0
-                    ? ((_selectedDrug!.maxVolume - _selectedDrug!.step) /
-                              _selectedDrug!.step)
-                          .round()
-                    : 1,
-                activeColor: Colors.blueAccent,
-                label: "${_selectedVolume.toStringAsFixed(1)} ml",
-                onChanged: (val) => setState(() => _selectedVolume = val),
-              ),
-              Center(
-                child: Text(
-                  "Zaciągnięto: ${_selectedVolume.toStringAsFixed(1)} ml\nDawka czynna: ${(_selectedVolume * _selectedDrug!.amountPerMl).toStringAsFixed(0)} ${_selectedDrug!.unit}",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.yellow,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                "AMPULARIUM ZRM",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+              const Divider(color: Colors.blueAccent),
+              DropdownButton<DrugInfo>(
+                isExpanded: true,
+                dropdownColor: Colors.black87,
+                value: _selectedDrug,
+                hint: const Text(
+                  "Wybierz lek...",
+                  style: TextStyle(color: Colors.white54),
+                ),
+                items: _drugs.map((drug) {
+                  return DropdownMenuItem(
+                    value: drug,
+                    child: Text(
+                      "${drug.name} (${drug.concentration})",
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  setState(() {
+                    _selectedDrug = val;
+                    _selectedVolume = val!.step;
+                  });
+                },
+              ),
               const SizedBox(height: 20),
 
-              const Text(
-                "3. Popitka / Rozpuszczalnik:",
-                style: TextStyle(color: Colors.grey),
-              ),
-              DropdownButton<String>(
-                dropdownColor: Colors.black87, // Ciemne tło rozwijanej listy
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                ), // Biały tekst w liście
-                iconEnabledColor: Colors.blueAccent, // Kolor strzałki
-                underline: Container(
-                  height: 1,
-                  color: Colors.blueAccent,
-                ), // Ładna, cienka linia pod spodem
-                value: _selectedFlush,
-                items: _flushes
-                    .map(
-                      (flush) => DropdownMenuItem(
-                        value: flush,
-                        child: Text(
-                          flush,
-                          style: const TextStyle(color: Colors.white),
-                        ),
+              if (_selectedDrug != null) ...[
+                const Text(
+                  "2. Pobierz objętość:",
+                  style: TextStyle(color: Colors.grey),
+                ),
+
+                // --- PATCH EBM: Blokada wysypywania się Slidera dla stałych dawek! ---
+                if (_selectedDrug!.maxVolume > _selectedDrug!.step)
+                  Slider(
+                    value: _selectedVolume,
+                    min: _selectedDrug!.step,
+                    max: _selectedDrug!.maxVolume,
+                    divisions:
+                        ((_selectedDrug!.maxVolume - _selectedDrug!.step) /
+                                    _selectedDrug!.step)
+                                .round() >
+                            0
+                        ? ((_selectedDrug!.maxVolume - _selectedDrug!.step) /
+                                  _selectedDrug!.step)
+                              .round()
+                        : 1,
+                    activeColor: Colors.blueAccent,
+                    label: "${_selectedVolume.toStringAsFixed(1)} ml",
+                    onChanged: (val) => setState(() => _selectedVolume = val),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 15.0),
+                    child: Text(
+                      "Lek jednodawkowy (${_selectedDrug!.maxVolume} ml)",
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.blueAccent,
+                        fontWeight: FontWeight.bold,
                       ),
-                    )
-                    .toList(),
-                onChanged: (val) => setState(() => _selectedFlush = val!),
-              ),
-              const SizedBox(height: 20),
-
-              Center(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red[800],
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 15,
                     ),
                   ),
-                  icon: const Icon(Icons.vaccines, color: Colors.white),
-                  label: const Text(
-                    "PRZYGOTUJ STRZYKAWKĘ",
-                    style: TextStyle(
-                      color: Colors.white,
+
+                Center(
+                  child: Text(
+                    "Zaciągnięto: ${_selectedVolume.toStringAsFixed(1)} ml\nDawka czynna: ${(_selectedVolume * _selectedDrug!.amountPerMl).toStringAsFixed(0)} ${_selectedDrug!.unit}",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.yellow,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  onPressed: () {
-                    // Pakujemy dane w jeden string, np. "Adrenalina|1 mg|0.9% NaCl (Bolus 20ml)"
-                    String doseStr =
-                        "${(_selectedVolume * _selectedDrug!.amountPerMl).toStringAsFixed(0)} ${_selectedDrug!.unit}";
-                    widget.onDrugPrepared(
-                      _selectedDrug!.name,
-                      "$doseStr|$_selectedFlush",
-                    );
-                    Navigator.of(context).pop();
-                  },
                 ),
-              ),
+                const SizedBox(height: 20),
+
+                const Text(
+                  "3. Popitka / Rozpuszczalnik:",
+                  style: TextStyle(color: Colors.grey),
+                ),
+                DropdownButton<String>(
+                  dropdownColor: Colors.black87,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  iconEnabledColor: Colors.blueAccent,
+                  underline: Container(height: 1, color: Colors.blueAccent),
+                  value: _selectedFlush,
+                  items: _flushes
+                      .map(
+                        (flush) => DropdownMenuItem(
+                          value: flush,
+                          child: Text(
+                            flush,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (val) => setState(() => _selectedFlush = val!),
+                ),
+                const SizedBox(height: 30),
+
+                Center(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[800],
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                    ),
+                    icon: const Icon(Icons.vaccines, color: Colors.white),
+                    label: const Text(
+                      "PRZYGOTUJ STRZYKAWKĘ",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onPressed: () {
+                      String doseStr =
+                          "${(_selectedVolume * _selectedDrug!.amountPerMl).toStringAsFixed(0)} ${_selectedDrug!.unit}";
+                      widget.onDrugPrepared(
+                        _selectedDrug!.name,
+                        "$doseStr|$_selectedFlush",
+                      );
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ),
+                const SizedBox(
+                  height: 10,
+                ), // Luz na dnie okienka, by ładnie wyglądało w scrollu
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
