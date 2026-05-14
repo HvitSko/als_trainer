@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'dart:math' as math;
 import '../logic/game_engine.dart';
-import '../models/als_state.dart';
 
 class MonitorView extends StatefulWidget {
   final GameEngine engine;
@@ -28,7 +26,7 @@ class _MonitorViewState extends State<MonitorView>
     )..repeat();
     _ticker.addListener(() {
       setState(() {
-        _time += 0.05; // Prędkość przesuwu fali
+        _time += 0.15; // Prędkość przesuwu fali
       });
     });
   }
@@ -67,10 +65,9 @@ class _MonitorViewState extends State<MonitorView>
                           child: CustomPaint(
                             painter: EcgPainter(
                               time: _time,
-                              rhythm: widget
-                                  .engine
-                                  .state
-                                  .monitorRhythm, // Silnik podaje rytm, my go tylko rysujemy!
+                              // SKIPPY FIX: Zamieniamy typ systemowy na czysty tekst dla rysownika!
+                              rhythm: widget.engine.state.monitorRhythm.name
+                                  .toUpperCase(),
                               color: Colors.greenAccent,
                             ),
                           ),
@@ -138,6 +135,20 @@ class _MonitorViewState extends State<MonitorView>
             child: Column(
               children: [
                 const SizedBox(height: 20),
+                _buildLifepakButton(
+                  widget.engine.state.isCprActive ? "STOP RKO" : "START RKO",
+                  widget.engine.state.isCprActive
+                      ? Colors.orange[900]!
+                      : Colors.green[800]!,
+                  () {
+                    // Magia Skippy'ego: Używamy odpowiednich funkcji w zależności od stanu!
+                    if (widget.engine.state.isCprActive) {
+                      widget.engine.stopCprAndAssess();
+                    } else {
+                      widget.engine.startCpr();
+                    }
+                  },
+                ),
                 _buildRotaryDial(), // Pokrętło energii
                 const SizedBox(height: 20),
                 _buildLifepakButton(
@@ -146,10 +157,13 @@ class _MonitorViewState extends State<MonitorView>
                   () {},
                 ),
                 _buildLifepakButton("2 CHARGE", Colors.yellow[700]!, () {
-                  // Tu wejdzie dźwięk ładowania!
+                  // Przekazujemy wybraną na pokrętle energię do silnika i ładujemy!
+                  widget.engine.setEnergy(_selectedEnergy.toInt());
+                  widget.engine.chargeDefibrillator();
                 }),
                 _buildLifepakButton("3 SHOCK", Colors.red[900]!, () {
-                  widget.engine.defibrillate(_selectedEnergy.toInt());
+                  // Prawidłowa nazwa funkcji z Twojego game_engine.dart
+                  widget.engine.deliverShock();
                 }),
                 const Spacer(),
                 _buildLifepakButton(
@@ -160,7 +174,8 @@ class _MonitorViewState extends State<MonitorView>
                   },
                 ),
                 _buildLifepakButton("NIBP", Colors.blueGrey[700]!, () {
-                  widget.engine.measureNibp();
+                  // TODO: Zgodnie z planem, ciśnieniomierz dodamy w kolejnych łatkach
+                  // Na razie przycisk "klika na pusto", by nie wysadzić aplikacji w kosmos
                 }),
                 const SizedBox(height: 20),
               ],
@@ -172,6 +187,17 @@ class _MonitorViewState extends State<MonitorView>
   }
 
   Widget _buildNumericPanel() {
+    // MAGIA SKIPPY'EGO: HR (Tętno) zależy od tego, czy pacjent odzyskał tętno fizyczne (ROSC), a nie od nazwy rytmu na ekranie!
+    final hr = widget.engine.state.patient.hasPulse ? "72" : "0";
+
+    // LOGIKA EBM: SpO2 pokazuje wartość tylko gdy klips jest przypięty I gdy jest tętno!
+    String spo2Value = "---";
+    if (widget.engine.state.isSpO2Attached) {
+      spo2Value = widget.engine.state.patient.hasPulse
+          ? "${widget.engine.state.patient.spO2 ?? 98}"
+          : "---";
+    }
+
     return Container(
       height: 120,
       color: Colors.black,
@@ -179,8 +205,8 @@ class _MonitorViewState extends State<MonitorView>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildValue("HR", "0", Colors.greenAccent),
-          _buildValue("SpO2", "98", Colors.cyanAccent),
+          _buildValue("HR", hr, Colors.greenAccent),
+          _buildValue("SpO2", spo2Value, Colors.cyanAccent), // dynamiczne SpO2
           _buildValue(
             "EtCO2",
             widget.engine.state.isCapnographyAttached ? "35" : "--",
