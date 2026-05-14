@@ -159,296 +159,401 @@ class _PatientViewState extends State<PatientView> {
 
   @override
   Widget build(BuildContext context) {
-    // MAGIA SKIPPY'EGO: Zamrażamy wymiary przestrzeni, a system pozwala ją szczypać i przesuwać!
-    return InteractiveViewer(
-      panEnabled: true,
-      minScale: 0.5,
-      maxScale: 3.0,
-      child: Center(
-        child: SizedBox(
-          width:
-              1536, // Złota zasada EBM dla UI: stała szerokość płótna! (Dostosuj jeśli ucięło Ci nogi)
-          height: 1024, // Stała wysokość płótna!
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/images/patient_body.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Center(child: Text("Brak grafiki!")),
-                ),
-              ),
+    return Container(
+      color: const Color(0xFF1A1A1A), // Neutralne, ciemnoszare tło (Mata SOR)
+      child: Stack(
+        children: [
+          // =========================================================
+          // WARSTWA 1: PACJENT (Responsywna Siatka Anatomiczna z Zoomem)
+          // =========================================================
+          Positioned.fill(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0, // Zablokowane zbytnie oddalanie
+              maxScale: 3.5, // Pozwala na precyzyjny zoom na żyły
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 1536 / 1024, // BLOKADA PROPORCJI
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final w = constraints.maxWidth;
+                      final h = constraints.maxHeight;
 
-              // --- ZNACZNIKI DIAGNOSTYCZNE ---
-              Align(
-                alignment: const Alignment(-0.88, -0.15),
-                child: _buildDropZone("Głowa", 120, 100),
-              ),
-              Align(
-                alignment: const Alignment(-0.65, -0.12),
-                child: _buildDropZone("Szyja", 80, 80),
-              ),
-              Align(
-                alignment: const Alignment(-0.52, -0.32),
-                child: _buildDropZone("Klatka Lewa", 100, 90),
-              ),
-              Align(
-                alignment: const Alignment(-0.52, 0.10),
-                child: _buildDropZone("Klatka Prawa", 100, 90),
-              ),
-              Align(
-                alignment: const Alignment(-0.28, -0.12),
-                child: _buildDropZone("Nadbrzusze", 80, 90),
-              ),
-              Align(
-                alignment: const Alignment(-0.12, -0.10),
-                child: _buildDropZone("Podbrzusze", 80, 90),
-              ),
-              Align(
-                alignment: const Alignment(-0.30, -0.35),
-                child: _buildDropZone("Bok Lewy", 90, 60),
-              ),
-              Align(
-                alignment: const Alignment(-0.30, 0.20),
-                child: _buildDropZone("Bok Prawy", 90, 60),
-              ),
-              Align(
-                alignment: const Alignment(-0.26, -0.55),
-                child: _buildDropZone("Zgięcie Lewa", 70, 70),
-              ),
-              Align(
-                alignment: const Alignment(-0.32, 0.48),
-                child: _buildDropZone("Zgięcie Prawa", 80, 80),
-              ),
-              Align(
-                alignment: const Alignment(0.10, -0.62),
-                child: _buildDropZone("Dłoń Lewa", 80, 80),
-              ),
-              Align(
-                alignment: const Alignment(0.10, 0.70),
-                child: _buildDropZone("Dłoń Prawa", 80, 80),
-              ),
-              Align(
-                alignment: const Alignment(0.85, -0.25),
-                child: _buildDropZone("Noga Lewa", 140, 100),
-              ),
-              Align(
-                alignment: const Alignment(0.85, 0.35),
-                child: _buildDropZone("Noga Prawa", 140, 100),
-              ),
-              // --- NOWOŚĆ: ETYKIETA "GRUBY PALEC" (Fat Finger HUD) ---
-              if (_hoveredZone.isNotEmpty && _equippedTool != null)
-                Positioned(
-                  top: 90, // Pojawi się bezpiecznie pod głównym HUDem
-                  left: 0,
-                  right: 0,
-                  child: IgnorePointer(
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green[900]?.withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(
-                            color: Colors.greenAccent,
-                            width: 2,
+                      return Stack(
+                        children: [
+                          // Tło pacjenta dopasowane idealnie do AspectRatio
+                          Positioned.fill(
+                            child: Image.asset(
+                              'assets/images/patient_body.png',
+                              fit: BoxFit.fill,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Center(
+                                    child: Text(
+                                      "Brak grafiki!",
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                            ),
                           ),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black54, blurRadius: 15),
-                          ],
-                        ),
-                        child: Text(
-                          _hoveredZone, // Magicznie wyświetla to, co zasłania palec!
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
+
+                          // --- ZNACZNIKI DIAGNOSTYCZNE (PRZELICZANE DYNAMICZNIE) ---
+                          // System używa Twoich starych koordynatów, przeliczając je na procenty matrycy!
+                          _buildResponsiveZone(
+                            "Głowa",
+                            -0.76,
+                            -0.11,
+                            160,
+                            120,
+                            w,
+                            h,
                           ),
-                        ),
-                      ),
-                    ),
+                          _buildResponsiveZone(
+                            "Szyja",
+                            -0.62,
+                            -0.10,
+                            80,
+                            95,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Klatka Lewa",
+                            -0.50,
+                            -0.22,
+                            110,
+                            100,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Klatka Prawa",
+                            -0.50,
+                            0.05,
+                            110,
+                            100,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Nadbrzusze",
+                            -0.28,
+                            -0.10,
+                            100,
+                            110,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Podbrzusze",
+                            -0.12,
+                            -0.08,
+                            90,
+                            100,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Bok Lewy",
+                            -0.30,
+                            -0.26,
+                            100,
+                            60,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Bok Prawy",
+                            -0.30,
+                            0.15,
+                            100,
+                            70,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Zgięcie Lewa",
+                            -0.26,
+                            -0.36,
+                            70,
+                            70,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Zgięcie Prawa",
+                            -0.31,
+                            0.33,
+                            80,
+                            80,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Dłoń Lewa",
+                            0.10,
+                            -0.42,
+                            80,
+                            80,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Dłoń Prawa",
+                            0.10,
+                            0.47,
+                            80,
+                            80,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Noga Lewa",
+                            0.85,
+                            -0.27,
+                            140,
+                            100,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Noga Prawa",
+                            0.85,
+                            0.32,
+                            140,
+                            100,
+                            w,
+                            h,
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
-              // --- 5. GÓRNY HUD: POWIADOMIENIA Z DZIENNIKA (EBM) ---
-              Builder(
-                builder: (context) {
-                  bool isRoutineExamLog =
-                      _hudLog.startsWith("BADANIE:") ||
-                      _hudLog.startsWith("USG:") ||
-                      _hudLog.startsWith("AKCJA: Założono") ||
-                      _hudLog.startsWith("DIAGNOZA");
-
-                  bool showHud =
-                      _hudLog.isNotEmpty &&
-                      !(isRoutineExamLog && _examResult.isNotEmpty);
-
-                  if (!showHud) return const SizedBox.shrink();
-
-                  return Positioned(
-                    top: 20,
-                    left: MediaQuery.of(context).size.width * 0.15,
-                    right: MediaQuery.of(context).size.width * 0.15,
-                    child: SafeArea(
-                      child: AnimatedOpacity(
-                        opacity: _hudLog.isNotEmpty ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 300),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _hudLog.contains("BŁĄD")
-                                ? Colors.red[900]?.withOpacity(0.95)
-                                : (_hudLog.contains("SUKCES")
-                                      ? Colors.green[900]?.withOpacity(0.95)
-                                      : Colors.black87),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _hudLog.contains("BŁĄD")
-                                  ? Colors.redAccent
-                                  : Colors.grey,
-                              width: 2,
-                            ),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black54, blurRadius: 10),
-                            ],
-                          ),
-                          child: Text(
-                            _hudLog,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
               ),
-              // --- WYNIKI POP-UP ---
-              if (_examResult.isNotEmpty)
-                Align(
-                  alignment: const Alignment(0.0, -0.8),
+            ),
+          ),
+
+          // =========================================================
+          // WARSTWA 2: HUD I EKWIPUNEK (Zablokowane na ekranie)
+          // =========================================================
+
+          // --- ETYKIETA "GRUBY PALEC" (Fat Finger HUD) ---
+          if (_hoveredZone.isNotEmpty && _equippedTool != null)
+            Positioned(
+              top: 90,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Center(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
-                      vertical: 16,
+                      vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.blue[900]?.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.cyanAccent, width: 2),
+                      color: Colors.green[900]?.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: Colors.greenAccent, width: 2),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black54, blurRadius: 15),
+                      ],
                     ),
                     child: Text(
-                      _examResult,
+                      _hoveredZone,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // --- GÓRNY HUD: POWIADOMIENIA Z DZIENNIKA (EBM) ---
+          Builder(
+            builder: (context) {
+              bool isRoutineExamLog =
+                  _hudLog.startsWith("BADANIE:") ||
+                  _hudLog.startsWith("USG:") ||
+                  _hudLog.startsWith("AKCJA: Założono") ||
+                  _hudLog.startsWith("DIAGNOZA");
+
+              bool showHud =
+                  _hudLog.isNotEmpty &&
+                  !(isRoutineExamLog && _examResult.isNotEmpty);
+
+              if (!showHud) return const SizedBox.shrink();
+
+              return Positioned(
+                top: 20,
+                left: MediaQuery.of(context).size.width * 0.15,
+                right: MediaQuery.of(context).size.width * 0.15,
+                child: SafeArea(
+                  child: AnimatedOpacity(
+                    opacity: _hudLog.isNotEmpty ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _hudLog.contains("BŁĄD")
+                            ? Colors.red[900]?.withOpacity(0.95)
+                            : (_hudLog.contains("SUKCES")
+                                  ? Colors.green[900]?.withOpacity(0.95)
+                                  : Colors.black87),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _hudLog.contains("BŁĄD")
+                              ? Colors.redAccent
+                              : Colors.grey,
+                          width: 2,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black54, blurRadius: 10),
+                        ],
+                      ),
+                      child: Text(
+                        _hudLog,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // --- WYNIKI POP-UP ---
+          if (_examResult.isNotEmpty)
+            Positioned(
+              top: 150,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[900]?.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.cyanAccent, width: 2),
+                  ),
+                  child: Text(
+                    _examResult,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // --- INTERFEJS NARZĘDZI ---
+          if (_equippedTool == null) ...[
+            if (widget.engine.state.isBagOpen) _buildBagOverlay(),
+            if (widget.engine.state.isAirwayMenuOpen) _buildAirwayOverlay(),
+          ] else ...[
+            // KOSZ / ODKŁADANIE
+            Positioned(
+              bottom: 130,
+              left: 30,
+              child: DragTarget<String>(
+                onAcceptWithDetails: (details) =>
+                    setState(() => _equippedTool = null),
+                builder: (context, candidate, rejected) => Column(
+                  children: [
+                    Icon(
+                      Icons.backpack,
+                      size: candidate.isNotEmpty ? 70 : 50,
+                      color: candidate.isNotEmpty
+                          ? Colors.orangeAccent
+                          : Colors.grey,
+                    ),
+                    Text(
+                      "Odłóż",
+                      style: TextStyle(
+                        color: candidate.isNotEmpty
+                            ? Colors.orangeAccent
+                            : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // NARZĘDZIE W RĘKU
+            Positioned(
+              bottom: 130,
+              right: 30,
+              child: Draggable<String>(
+                data: _equippedTool,
+                feedback: Material(
+                  color: Colors.transparent,
+                  child: Icon(
+                    _getIconForTool(_equippedTool!),
+                    size: 80,
+                    color: Colors.blueAccent,
+                  ),
+                ),
+                childWhenDragging: Opacity(
+                  opacity: 0.2,
+                  child: Column(
+                    children: [
+                      Icon(
+                        _getIconForTool(_equippedTool!),
+                        size: 60,
+                        color: Colors.greenAccent,
+                      ),
+                      const Text(
+                        "Przeciągasz...",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      _getIconForTool(_equippedTool!),
+                      size: 60,
+                      color: Colors.greenAccent,
+                    ),
+                    Text(
+                      "W RĘKU:\n$_equippedTool",
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
+                  ],
                 ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
-              // --- INTERFEJS NARZĘDZI (UKRYTY LUB WIDOCZNY) ---
-              if (_equippedTool == null) ...[
-                if (widget.engine.state.isBagOpen) _buildBagOverlay(),
-                if (widget.engine.state.isAirwayMenuOpen) _buildAirwayOverlay(),
-              ] else ...[
-                // KOSZ / ODKŁADANIE
-                Positioned(
-                  bottom: 130,
-                  left: 30,
-                  child: DragTarget<String>(
-                    onAcceptWithDetails: (details) =>
-                        setState(() => _equippedTool = null),
-                    builder: (context, candidate, rejected) => Column(
-                      children: [
-                        Icon(
-                          Icons.backpack,
-                          size: candidate.isNotEmpty ? 70 : 50,
-                          color: candidate.isNotEmpty
-                              ? Colors.orangeAccent
-                              : Colors.grey,
-                        ),
-                        Text(
-                          "Odłóż",
-                          style: TextStyle(
-                            color: candidate.isNotEmpty
-                                ? Colors.orangeAccent
-                                : Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // NARZĘDZIE W RĘKU
-                Positioned(
-                  bottom: 130,
-                  right: 30,
-                  child: Draggable<String>(
-                    data: _equippedTool,
-                    feedback: Material(
-                      color: Colors.transparent,
-                      child: Icon(
-                        _getIconForTool(_equippedTool!),
-                        size: 80,
-                        color: Colors.blueAccent,
-                      ),
-                    ),
-                    childWhenDragging: Opacity(
-                      opacity: 0.2,
-                      child: Column(
-                        children: [
-                          Icon(
-                            _getIconForTool(_equippedTool!),
-                            size: 60,
-                            color: Colors.greenAccent,
-                          ),
-                          const Text(
-                            "Przeciągasz...",
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(
-                          _getIconForTool(_equippedTool!),
-                          size: 60,
-                          color: Colors.greenAccent,
-                        ),
-                        Text(
-                          "W RĘKU:\n$_equippedTool",
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ], // To zamyka listę children w Stack
-          ), // Zamyka Stack
-        ), // Zamyka SizedBox
-      ), // Zamyka Center
-    ); // Zamyka InteractiveViewer i kończy return
-  } // Zamyka metodę build(BuildContext context)
+  // =========================================================
+  // METODY POMOCNICZE UI
+  // =========================================================
 
   // NAKŁADKA: TORBA DIAGNOSTYCZNA
   Widget _buildBagOverlay() {
@@ -468,7 +573,6 @@ class _PatientViewState extends State<PatientView> {
             scrollDirection: Axis.horizontal,
             child: _showIvMenu
                 ? Row(
-                    // PODMENU WENFLONÓW
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
@@ -500,7 +604,6 @@ class _PatientViewState extends State<PatientView> {
                     ],
                   )
                 : Row(
-                    // GŁÓWNA TORBA
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Padding(
@@ -527,7 +630,6 @@ class _PatientViewState extends State<PatientView> {
                       ),
                       _buildToolEquipButton("USG: Hokus POCUS", Icons.waves),
                       _buildToolEquipButton("Folia NRC", Icons.ac_unit),
-                      // TEN PRZYCISK OTWIERA PODMENU ZAMIAST WYPOSAŻAĆ
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4.0),
                         child: Column(
@@ -587,7 +689,6 @@ class _PatientViewState extends State<PatientView> {
                     onPressed: widget.engine.performManualAirwayManeuver,
                     child: const Text("Rękoczyn Udrożnienia"),
                   ),
-                  // NOWY PRZYCISK: PREOKSYGENACJA ZMARTWYCHWSTAŁA
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.lightBlue[700],
@@ -627,16 +728,11 @@ class _PatientViewState extends State<PatientView> {
                       max: 20,
                       divisions: 20,
                       label: "${widget.engine.state.oxygenFlow} l/min",
-                      onChanged: (val) {
-                        // CICHA AKTUALIZACJA: Zmienia pozycję suwaka na ekranie, ale NIE wysyła info do logów EBM!
-                        setState(
-                          () => widget.engine.state.oxygenFlow = val.toInt(),
-                        );
-                      },
-                      onChangeEnd: (val) {
-                        // GŁOŚNA AKTUALIZACJA: Gdy puścisz palec, silnik dostaje info i wywala (bądź nie) błąd EBM.
-                        widget.engine.setOxygenFlow(val.toInt());
-                      },
+                      onChanged: (val) => setState(
+                        () => widget.engine.state.oxygenFlow = val.toInt(),
+                      ),
+                      onChangeEnd: (val) =>
+                          widget.engine.setOxygenFlow(val.toInt()),
                     ),
                   ),
                   Text(
@@ -741,7 +837,7 @@ class _PatientViewState extends State<PatientView> {
               setState(() {
                 _equippedTool = name;
                 widget.engine.closeMenus();
-              }); // ZAMYKA MENU PO WYCIĄGNIĘCIU!
+              });
             },
           ),
           Text(name, style: const TextStyle(color: Colors.grey, fontSize: 9)),
@@ -750,39 +846,64 @@ class _PatientViewState extends State<PatientView> {
     );
   }
 
-  Widget _buildDropZone(
+  // =========================================================
+  // MAGIA RESPANSYWNOŚCI (KWANTOWY PRZELICZNIK)
+  // =========================================================
+
+  /// Ta funkcja bierze Twoje stare współrzędne z Align i zamienia je na relatywne pozycjonowanie w matrycy.
+  Widget _buildResponsiveZone(
     String baseTarget,
-    double originalWidth,
-    double originalHeight,
+    double alignX,
+    double alignY,
+    double baseWidth,
+    double baseHeight,
+    double maxWidth,
+    double maxHeight,
   ) {
-    double scaleFactor = 0.6; // Twoje wspaniałe zmniejszenie hitboxów
-    double width = originalWidth * scaleFactor;
-    double height = originalHeight * scaleFactor;
+    // 1. Zamiana współrzędnych Alignment (-1.0 do 1.0) na ułamki dziesiętne (0.0 do 1.0)
+    double percentX = (alignX + 1) / 2;
+    double percentY = (alignY + 1) / 2;
+
+    // 2. Skalowanie wymiarów (utrzymujemy Twój stary scaleFactor 0.6)
+    double scaleFactor = 0.6;
+    double w = (baseWidth * scaleFactor) / 1536 * maxWidth;
+    double h = (baseHeight * scaleFactor) / 1024 * maxHeight;
+
+    // 3. Obliczanie pozycji lewego górnego rogu hitboxa
+    double left = (maxWidth * percentX) - (w / 2);
+    double top = (maxHeight * percentY) - (h / 2);
+
+    return Positioned(
+      left: left,
+      top: top,
+      width: w,
+      height: h,
+      child: _buildDropZone(baseTarget),
+    );
+  }
+
+  Widget _buildDropZone(String baseTarget) {
     String displayLabel = _getDynamicLabel(baseTarget);
 
     return DragTarget<String>(
-      // Gdy palec WCHODZI nad hitbox:
       onWillAcceptWithDetails: (details) {
         setState(() => _hoveredZone = displayLabel);
-        return true; // Musi zwrócić true, żeby zaakceptować upuszczenie!
+        return true;
       },
-      // Gdy palec UCIEKA z hitboxa:
       onLeave: (data) {
         setState(() => _hoveredZone = "");
       },
-      // Gdy upuścisz narzędzie na hitbox:
       onAcceptWithDetails: (details) {
-        setState(() => _hoveredZone = ""); // Czyścimy napis z góry ekranu
-        _showResult(details.data, baseTarget); // Odpalamy logikę!
+        setState(() => _hoveredZone = "");
+        _showResult(details.data, baseTarget);
       },
       builder: (context, candidateData, rejectedData) {
         bool isHovered = candidateData.isNotEmpty;
-        if (_equippedTool == null)
-          return SizedBox(width: width, height: height);
+
+        // Zwracamy SizedBox.expand(), dzięki czemu hitbox zajmuje całe wyznaczone mu wyżej pole Positioned
+        if (_equippedTool == null) return const SizedBox.expand();
 
         return Container(
-          width: width,
-          height: height,
           decoration: BoxDecoration(
             color: isHovered
                 ? Colors.greenAccent.withOpacity(0.3)
@@ -793,7 +914,6 @@ class _PatientViewState extends State<PatientView> {
             ),
             borderRadius: BorderRadius.circular(100),
           ),
-          // Magia! Zero tekstu w środku! Zlikwidowaliśmy problem grubego palca.
         );
       },
     );
