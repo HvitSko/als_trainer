@@ -1,244 +1,88 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:math' as math;
 import '../logic/game_engine.dart';
 import '../models/als_state.dart';
 
-class MonitorView extends StatelessWidget {
+class MonitorView extends StatefulWidget {
   final GameEngine engine;
-
   const MonitorView({super.key, required this.engine});
 
-  Color? get textColor => null;
+  @override
+  State<MonitorView> createState() => _MonitorViewState();
+}
+
+class _MonitorViewState extends State<MonitorView>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ticker;
+  double _time = 0;
+  double _selectedEnergy = 200; // Domyślna energia Lifepaka
+  bool _isSynced = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat();
+    _ticker.addListener(() {
+      setState(() {
+        _time += 0.05; // Prędkość przesuwu fali
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: engine,
-      builder: (context, _) {
-        final state = engine.state;
-
-        return Container(
-          color: Colors.black87,
-          // Przenosimy stary padding do SingleChildScrollView, żeby zyskać na kontroli!
-          child: SafeArea(
-            child: SingleChildScrollView(
-              // 120 pikseli na dole ratuje życie (i UI) przed zgnieceniem przez dolne przyciski!
-              padding: const EdgeInsets.only(
-                left: 16,
-                top: 16,
-                right: 16,
-                bottom: 120,
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Row(
+        children: [
+          // =========================================================
+          // 1. EKRAN MONITORA (LEWA STRONA)
+          // =========================================================
+          Expanded(
+            flex: 3,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey[900]!, width: 4),
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  // --- GÓRNY PASEK PARAMETRÓW ---
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildMetric(
-                        "Czas akcji",
-                        "${(state.totalElapsedGameTime ~/ 60).toString().padLeft(2, '0')}:${(state.totalElapsedGameTime % 60).toString().padLeft(2, '0')}",
-                        Colors.white,
-                      ),
-                      _buildMetric(
-                        "RKO",
-                        "${state.cprSecondsRemaining} s",
-                        state.isCprActive
-                            ? Colors.greenAccent
-                            : (state.cprSecondsRemaining == 0
-                                  ? Colors.redAccent
-                                  : Colors.grey),
-                      ), // POWRÓT SYNA MARNOTRAWNEGO
-                      _buildMetric(
-                        "SpO2",
-                        state.isSpO2Attached
-                            ? (state.patient.hasPulse
-                                  ? '${state.patient.spO2}%'
-                                  : '--%')
-                            : 'Odł.',
-                        Colors.cyanAccent,
-                      ),
-                      _buildMetric(
-                        "ETCO2",
-                        state.isCapnographyAttached
-                            ? '${state.patient.etCo2} mmHg'
-                            : '--',
-                        Colors.yellowAccent,
-                      ),
-                    ],
-                  ),
-                  const Divider(color: Colors.grey, height: 30),
-
-                  // --- EKG I STAN ---
-                  Text(
-                    'Faza: ${state.currentPhase.name.toUpperCase()}',
-                    style: const TextStyle(fontSize: 16, color: Colors.blue),
-                  ),
-                  const SizedBox(height: 10),
-                  // --- EKG I STAN ---
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.green[900]?.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Builder(
-                        builder: (context) {
-                          String ekgText;
-                          Color ekgColor;
-
-                          if (state.currentPhase ==
-                              ResuscitationPhase.assessmentABCDE) {
-                            ekgText = 'BRAK SYGNAŁU (PODŁĄCZ MONITOR)';
-                            ekgColor = Colors.grey;
-                          } else if (state.currentPhase ==
-                              ResuscitationPhase.analyzing) {
-                            ekgText = 'ANALIZA EKG...';
-                            ekgColor = Colors.yellow;
-                          } else {
-                            ekgText =
-                                'EKG: ${state.monitorRhythm.name.toUpperCase()}';
-                            ekgColor = Colors.greenAccent;
-                          }
-
-                          return Text(
-                            ekgText,
-                            style: TextStyle(
-                              fontSize: 28,
-                              color: ekgColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // --- KLAWIATURA STERUJĄCA MONITORA ---
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      ElevatedButton(
-                        onPressed:
-                            state.currentPhase ==
-                                ResuscitationPhase.assessmentABCDE
-                            ? engine.connectMonitor
-                            : null,
-                        child: const Text('PODŁĄCZ MONITOR'),
-                      ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[700],
-                        ),
-                        onPressed:
-                            (state.currentPhase !=
-                                    ResuscitationPhase.assessmentABCDE &&
-                                !state.isCprActive)
-                            ? engine.startCpr
-                            : null,
-                        child: const Text('ROZPOCZNIJ RKO'),
-                      ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue[600],
-                        ),
-                        onPressed: state.isCprActive
-                            ? engine.stopCprAndAssess
-                            : null,
-                        child: const Text('ZATRZYMAJ RKO / OCEŃ RYTM'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // --- PANEL DEFIBRYLATORA ---
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[850],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 10,
-                      runSpacing: 10,
+                  // --- FALA EKG (ZIELONA) ---
+                  Expanded(
+                    child: Stack(
                       children: [
-                        const Text(
-                          'Energia: ',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        Positioned.fill(
+                          child: CustomPaint(painter: GridPainter()),
                         ),
-                        DropdownButton<int>(
-                          value: state.selectedEnergy,
-                          dropdownColor: Colors.grey[900],
-                          style: const TextStyle(
-                            color: Colors.yellow,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: EcgPainter(
+                              time: _time,
+                              rhythm: widget
+                                  .engine
+                                  .state
+                                  .monitorRhythm, // Silnik podaje rytm, my go tylko rysujemy!
+                              color: Colors.greenAccent,
+                            ),
                           ),
-                          items: [150, 200, 300, 360]
-                              .map(
-                                (e) => DropdownMenuItem(
-                                  value: e,
-                                  child: Text('${e}J'),
-                                ),
-                              )
-                              .toList(),
-                          onChanged:
-                              (state.isDefibCharging || state.isDefibCharged)
-                              ? null
-                              : (val) {
-                                  if (val != null) engine.setEnergy(val);
-                                },
                         ),
-                        ElevatedButton(
-                          onPressed:
-                              (state.currentPhase !=
-                                      ResuscitationPhase.assessmentABCDE) &&
-                                  !state.isDefibCharged &&
-                                  !state.isDefibCharging
-                              ? engine.chargeDefibrillator
-                              : null,
+                        const Positioned(
+                          top: 10,
+                          left: 10,
                           child: Text(
-                            state.isDefibCharging ? 'ŁADOWANIE...' : 'ŁADUJ',
-                          ),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: state.isDefibCharged
-                                ? Colors.blueGrey[700]
-                                : Colors.grey[900],
-                          ),
-                          onPressed: state.isDefibCharged
-                              ? engine.disarmDefibrillator
-                              : null,
-                          child: const Text(
-                            'ROZŁADUJ',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: state.isDefibCharged
-                                ? Colors.red
-                                : Colors.grey[900],
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 15,
-                            ),
-                          ),
-                          onPressed: state.isDefibCharged
-                              ? engine.deliverShock
-                              : null,
-                          child: const Text(
-                            'SHOCK',
+                            "II x1.0",
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Colors.greenAccent,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -246,75 +90,299 @@ class MonitorView extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // --- DZIENNIK ZDARZEŃ ---
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[900],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.all(8),
-                    // ... reszta ustawień Twojego kontenera ...
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                  // --- FALA ETCO2 (ŻÓŁTA) ---
+                  Expanded(
+                    child: Stack(
                       children: [
-                        const Text(
-                          "DZIENNIK ZDARZEŃ",
-                          style: TextStyle(color: Colors.grey),
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: Etco2Painter(
+                              time: _time,
+                              isEtco2Attached:
+                                  widget.engine.state.isCapnographyAttached,
+                              color: Colors.yellowAccent,
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 8),
-
-                        // Sam ListView.builder, ALE Z DWOMA NOWYMI LINIKAMI!
-                        ListView.builder(
-                          shrinkWrap:
-                              true, // ZMUSZA LISTĘ DO ZAJĘCIA TYLKO TYLE MIEJSCA, ILE POTRZEBUJĄ JEJ ELEMENTY!
-                          physics:
-                              const NeverScrollableScrollPhysics(), // WYŁĄCZA WEWNĘTRZNE PRZEWIJANIE (przewija się cały monitor)
-                          itemCount: state.log.length,
-                          itemBuilder: (context, index) {
-                            String logMsg = state.log[index];
-                            // ... tu zostaje Twoja logika kolorowania tekstów ...
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 4.0),
-                              child: Text(
-                                logMsg,
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            );
-                          },
+                        const Positioned(
+                          top: 10,
+                          left: 10,
+                          child: Text(
+                            "EtCO2",
+                            style: TextStyle(
+                              color: Colors.yellowAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(
-                    height: 80,
-                  ), // Margines na globalny pasek narzędzi
-                ], // To zamyka listę children w Column
-              ), // Zamyka Column
-            ), // Zamyka SingleChildScrollView
-          ), // Zamyka SafeArea
-        ); // Zamyka Container
-      }, // Zamyka builder w AnimatedBuilder
-    ); // Zamyka AnimatedBuilder (return)
-  } // Zamyka metodę build(BuildContext context)
+                  // --- PASEK PARAMETRÓW CYFROWYCH ---
+                  _buildNumericPanel(),
+                ],
+              ),
+            ),
+          ),
 
-  Widget _buildMetric(String label, String value, Color color) {
+          // =========================================================
+          // 2. PANEL STEROWANIA LIFEPAK (PRAWA STRONA)
+          // =========================================================
+          Container(
+            width: 250,
+            decoration: BoxDecoration(
+              color: const Color(0xFF2A2A2A),
+              border: Border.all(color: Colors.black, width: 2),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                _buildRotaryDial(), // Pokrętło energii
+                const SizedBox(height: 20),
+                _buildLifepakButton(
+                  "1 SELECT ENERGY",
+                  Colors.grey[800]!,
+                  () {},
+                ),
+                _buildLifepakButton("2 CHARGE", Colors.yellow[700]!, () {
+                  // Tu wejdzie dźwięk ładowania!
+                }),
+                _buildLifepakButton("3 SHOCK", Colors.red[900]!, () {
+                  widget.engine.defibrillate(_selectedEnergy.toInt());
+                }),
+                const Spacer(),
+                _buildLifepakButton(
+                  "SYNC",
+                  _isSynced ? Colors.orange : Colors.grey[700]!,
+                  () {
+                    setState(() => _isSynced = !_isSynced);
+                  },
+                ),
+                _buildLifepakButton("NIBP", Colors.blueGrey[700]!, () {
+                  widget.engine.measureNibp();
+                }),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNumericPanel() {
+    return Container(
+      height: 120,
+      color: Colors.black,
+      padding: const EdgeInsets.all(8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildValue("HR", "0", Colors.greenAccent),
+          _buildValue("SpO2", "98", Colors.cyanAccent),
+          _buildValue(
+            "EtCO2",
+            widget.engine.state.isCapnographyAttached ? "35" : "--",
+            Colors.yellowAccent,
+          ),
+          _buildValue("NIBP", "---/---", Colors.white),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildValue(String label, String val, Color color) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        Text(label, style: TextStyle(color: color, fontSize: 12)),
         Text(
-          value,
+          val,
           style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
             color: color,
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'monospace',
           ),
         ),
       ],
     );
   }
+
+  Widget _buildRotaryDial() {
+    return Column(
+      children: [
+        const Text(
+          "ENERGY SELECT",
+          style: TextStyle(color: Colors.white, fontSize: 10),
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onVerticalDragUpdate: (details) {
+            setState(() {
+              _selectedEnergy = (_selectedEnergy + details.delta.dy).clamp(
+                2,
+                360,
+              );
+            });
+          },
+          child: Transform.rotate(
+            angle: _selectedEnergy * 0.05,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.grey[900],
+                border: Border.all(color: Colors.grey[700]!, width: 4),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black, blurRadius: 10),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: Container(
+                      width: 4,
+                      height: 40,
+                      color: Colors.redAccent,
+                      margin: const EdgeInsets.only(bottom: 40),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          "${_selectedEnergy.toInt()} J",
+          style: const TextStyle(
+            color: Colors.yellowAccent,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLifepakButton(String label, Color color, VoidCallback action) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 20),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          elevation: 8,
+        ),
+        onPressed: action,
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+}
+
+// =========================================================
+// 🎨 SILNIK GRAFICZNY FAL (PAINTERS)
+// =========================================================
+
+class EcgPainter extends CustomPainter {
+  final double time;
+  final String rhythm;
+  final Color color;
+  EcgPainter({required this.time, required this.rhythm, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+    final path = Path();
+
+    path.moveTo(0, size.height / 2);
+    for (double x = 0; x < size.width; x++) {
+      double y = size.height / 2;
+
+      // LOGIKA RYTMÓW NZK (EBM)
+      if (rhythm == "VF") {
+        y +=
+            math.sin(x * 0.1 + time * 2) *
+            15 *
+            math.sin(x * 0.05); // Chaotyczna fala VF
+      } else if (rhythm == "VT") {
+        y +=
+            (math.sin(x * 0.15 + time * 3).abs() * -40) +
+            20; // Szerokie zespoły VT
+      } else if (rhythm == "Asystolia") {
+        y += math.sin(x * 0.5) * 1.5; // Prawie płaska linia
+      } else {
+        // Rytm zatokowy / PEA (Podstawowy QRS)
+        double phase = (x * 0.05 + time) % 5;
+        if (phase < 0.2)
+          y -= 40 * math.sin(phase * math.pi / 0.2); // Zespół QRS
+      }
+
+      path.lineTo(x, y);
+    }
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(EcgPainter old) => true;
+}
+
+class Etco2Painter extends CustomPainter {
+  final double time;
+  final bool isEtco2Attached;
+  final Color color;
+  Etco2Painter({
+    required this.time,
+    required this.isEtco2Attached,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!isEtco2Attached) return;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+    final path = Path();
+    path.moveTo(0, size.height * 0.8);
+    for (double x = 0; x < size.width; x++) {
+      double phase = (x * 0.03 + time) % 6;
+      double y = size.height * 0.8;
+      if (phase < 2) y -= 30; // Prostokątna fala EtCO2
+      path.lineTo(x, y);
+    }
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(Etco2Painter old) => true;
+}
+
+class GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.grey[900]!
+      ..strokeWidth = 0.5;
+    for (double i = 0; i < size.width; i += 20)
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
+    for (double i = 0; i < size.height; i += 20)
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+  }
+
+  @override
+  bool shouldRepaint(GridPainter old) => false;
 }
