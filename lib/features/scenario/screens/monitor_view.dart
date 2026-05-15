@@ -11,32 +11,9 @@ class MonitorView extends StatefulWidget {
   State<MonitorView> createState() => _MonitorViewState();
 }
 
-class _MonitorViewState extends State<MonitorView>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ticker;
-  double _time = 0;
+class _MonitorViewState extends State<MonitorView> {
   double _selectedEnergy = 150; // Zgodnie z wytycznymi ERC - start od 150J
   bool _isSynced = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat();
-    _ticker.addListener(() {
-      setState(() {
-        _time += 0.02; // Płynna, idealna prędkość 25 mm/s dla monitora
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +69,8 @@ class _MonitorViewState extends State<MonitorView>
                             ],
                           ),
                         ),
-                        // --- FALA EKG (ZIELONA) ---
+
+                        // --- FALA EKG (ZIELONA - SWEEP PAINTER) ---
                         Expanded(
                           flex: 3,
                           child: Stack(
@@ -101,12 +79,12 @@ class _MonitorViewState extends State<MonitorView>
                                 child: CustomPaint(painter: GridPainter()),
                               ),
                               Positioned.fill(
-                                child: CustomPaint(
-                                  painter: EcgPainter(
-                                    time: _time,
+                                // OPTYMALIZACJA: RepaintBoundary izoluje renderowanie fali!
+                                child: RepaintBoundary(
+                                  child: SweepWaveDisplay(
+                                    waveType: WaveType.ecg,
                                     rhythm: state.monitorRhythm,
-                                    isCprActive: state
-                                        .isCprActive, // EBM: Artefakty z RKO!
+                                    isCprActive: state.isCprActive,
                                     color: Colors.greenAccent,
                                   ),
                                 ),
@@ -130,15 +108,16 @@ class _MonitorViewState extends State<MonitorView>
                             ],
                           ),
                         ),
-                        // --- FALA ETCO2 (ŻÓŁTA) ---
+
+                        // --- FALA ETCO2 (ŻÓŁTA - SWEEP PAINTER) ---
                         Expanded(
                           flex: 1,
                           child: Stack(
                             children: [
                               Positioned.fill(
-                                child: CustomPaint(
-                                  painter: Etco2Painter(
-                                    time: _time,
+                                child: RepaintBoundary(
+                                  child: SweepWaveDisplay(
+                                    waveType: WaveType.etco2,
                                     isEtco2Attached:
                                         state.isCapnographyAttached,
                                     isVentilated:
@@ -162,6 +141,7 @@ class _MonitorViewState extends State<MonitorView>
                             ],
                           ),
                         ),
+
                         // --- PASEK PARAMETRÓW CYFROWYCH ---
                         _buildNumericPanel(state),
                       ],
@@ -178,7 +158,6 @@ class _MonitorViewState extends State<MonitorView>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // GŁÓWNY PRZYCISK RKO (Zawsze na wierzchu)
                       Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: ElevatedButton.icon(
@@ -210,8 +189,7 @@ class _MonitorViewState extends State<MonitorView>
                           onPressed: () {
                             if (state.currentPhase ==
                                 ResuscitationPhase.assessmentABCDE) {
-                              widget.engine
-                                  .connectMonitor(); // Skrót do podłączenia
+                              widget.engine.connectMonitor();
                             }
                             if (state.isCprActive) {
                               widget.engine.stopCprAndAssess();
@@ -223,7 +201,6 @@ class _MonitorViewState extends State<MonitorView>
                       ),
                       const Divider(color: Colors.black, thickness: 2),
 
-                      // RESZTA PRZYCISKÓW W PRZEWIJALNYM KONTENERZE (Brak problemu overflow!)
                       Expanded(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(
@@ -237,11 +214,9 @@ class _MonitorViewState extends State<MonitorView>
                               _buildLifepakButton(
                                 "1 ENERGY",
                                 Colors.grey[800]!,
-                                () {
-                                  widget.engine.setEnergy(
-                                    _selectedEnergy.toInt(),
-                                  );
-                                },
+                                () => widget.engine.setEnergy(
+                                  _selectedEnergy.toInt(),
+                                ),
                               ),
                               _buildLifepakButton(
                                 "2 CHARGE",
@@ -260,23 +235,19 @@ class _MonitorViewState extends State<MonitorView>
                                 state.isDefibCharged
                                     ? Colors.red[600]!
                                     : Colors.red[900]!,
-                                () {
-                                  widget.engine.deliverShock();
-                                },
+                                () => widget.engine.deliverShock(),
                               ),
                               const SizedBox(height: 20),
                               _buildLifepakButton(
                                 "SYNC",
                                 _isSynced ? Colors.orange : Colors.grey[800]!,
-                                () {
-                                  setState(() => _isSynced = !_isSynced);
-                                },
+                                () => setState(() => _isSynced = !_isSynced),
                               ),
                               _buildLifepakButton(
                                 "NIBP",
                                 Colors.blueGrey[800]!,
                                 () {},
-                              ), // Miejsce na przyszłość
+                              ),
                             ],
                           ),
                         ),
@@ -293,10 +264,20 @@ class _MonitorViewState extends State<MonitorView>
   }
 
   Widget _buildNumericPanel(AlsScenarioState state) {
-    // EBM Logika Tętna
-    final hr = state.patient.hasPulse ? "72" : "0";
+    String hr = "0";
+    if (state.isCprActive) {
+      hr = "115";
+    } else {
+      if (state.monitorRhythm == PatientRhythm.pvt)
+        hr = "214";
+      else if (state.monitorRhythm == PatientRhythm.vf)
+        hr = "---";
+      else if (state.monitorRhythm == PatientRhythm.asystole)
+        hr = "0";
+      else
+        hr = "72";
+    }
 
-    // EBM Logika SpO2
     String spo2Value = "---";
     if (state.isSpO2Attached) {
       spo2Value = state.patient.hasPulse
@@ -356,7 +337,6 @@ class _MonitorViewState extends State<MonitorView>
         const SizedBox(height: 8),
         GestureDetector(
           onVerticalDragUpdate: (details) {
-            // Przesuwanie palcem w górę/dół po kole zmienia dżule!
             setState(() {
               _selectedEnergy = (_selectedEnergy - details.delta.dy).clamp(
                 2,
@@ -427,19 +407,149 @@ class _MonitorViewState extends State<MonitorView>
 }
 
 // =========================================================
-// 🎨 ZAAWANSOWANY SILNIK GRAFICZNY FAL EKG (EBM MATEMATYKA)
+// 🎨 ARCHITEKTURA SWEEP PAINTER (BUFOR DANYCH + TICKER)
 // =========================================================
 
-class EcgPainter extends CustomPainter {
-  final double time;
-  final PatientRhythm rhythm;
-  final bool isCprActive;
+enum WaveType { ecg, etco2 }
+
+class SweepWaveDisplay extends StatefulWidget {
+  final WaveType waveType;
+  final PatientRhythm? rhythm;
+  final bool? isCprActive;
+  final bool? isEtco2Attached;
+  final bool? isVentilated;
   final Color color;
 
-  EcgPainter({
-    required this.time,
-    required this.rhythm,
-    required this.isCprActive,
+  const SweepWaveDisplay({
+    super.key,
+    required this.waveType,
+    this.rhythm,
+    this.isCprActive,
+    this.isEtco2Attached,
+    this.isVentilated,
+    required this.color,
+  });
+
+  @override
+  State<SweepWaveDisplay> createState() => _SweepWaveDisplayState();
+}
+
+class _SweepWaveDisplayState extends State<SweepWaveDisplay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  // EBM: Wielkość bufora określa rozdzielczość matrycy EKG
+  static const int maxPoints = 350;
+  final List<double> _dataPoints = List.filled(maxPoints, 0.0);
+
+  int _currentIndex = 0;
+  double _internalTime = 0.0;
+  final math.Random _random = math.Random();
+
+  @override
+  void initState() {
+    super.initState();
+    // Ticker działający na poziomie 60FPS dla płynności
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat();
+    _controller.addListener(_generateNextPoint);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _generateNextPoint() {
+    if (!mounted) return;
+
+    double y = 0;
+    _internalTime += 0.035; // Skalibrowany przelicznik czasu (ok. 25 mm/s)
+
+    if (widget.waveType == WaveType.ecg) {
+      if (widget.isCprActive == true) {
+        // ARTEFAKTY RKO: Potężne wahania linii od kompresji (ok 110/min) + szum wstrząsowy
+        y =
+            math.sin(_internalTime * 10.5) * 35 +
+            math.sin(_internalTime * 50) * 4;
+      } else if (widget.rhythm == PatientRhythm.unknown) {
+        y = 0.0;
+      } else if (widget.rhythm == PatientRhythm.vf) {
+        // VF: Hiper-realistyczny kliniczny chaos. Suma 3 fal sinusoidalnych + losowy szum wędrujący
+        y =
+            math.sin(_internalTime * 4.5) * 12 +
+            math.cos(_internalTime * 5.5) * 16 +
+            math.sin(_internalTime * 7.2) * 8 +
+            (_random.nextDouble() - 0.5) * 8; // Random noise!
+      } else if (widget.rhythm == PatientRhythm.pvt) {
+        // pVT: Szybki (rate ~200), uporządkowany ząb piły
+        y = (math.sin(_internalTime * 11).abs() * -45) + 20;
+      } else if (widget.rhythm == PatientRhythm.asystole) {
+        // ASYSTOLIA: To nigdy nie jest płaska linia. Pływająca izoelektryczna (wandering baseline) + szum
+        y =
+            math.sin(_internalTime * 2) * 2 +
+            math.sin(_internalTime * 0.5) * 1.5 +
+            (_random.nextDouble() - 0.5) * 3;
+      } else {
+        // ZATOKA / PEA: P-QRS-T
+        double phase = (_internalTime * 2.5) % 6.0;
+        if (phase > 0.5 && phase < 0.9) {
+          y = -6 * math.sin((phase - 0.5) * math.pi / 0.4); // P
+        } else if (phase > 1.2 && phase < 1.5) {
+          double qrsPhase = phase - 1.2;
+          if (qrsPhase < 0.1)
+            y = 5; // Q
+          else if (qrsPhase < 0.2)
+            y = -45; // R
+          else
+            y = 15; // S
+        } else if (phase > 1.8 && phase < 2.6) {
+          y = -10 * math.sin((phase - 1.8) * math.pi / 0.8); // T
+        }
+      }
+    } else if (widget.waveType == WaveType.etco2) {
+      if (widget.isEtco2Attached == true && widget.isVentilated == true) {
+        double phase = (_internalTime * 1.5) % 6;
+        if (phase < 2.5) y = -25; // Kwadratowa fala wydechu
+      }
+    }
+
+    setState(() {
+      _dataPoints[_currentIndex] = y;
+      _currentIndex = (_currentIndex + 1) % maxPoints;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: SweepPainter(
+        dataPoints: _dataPoints,
+        currentIndex: _currentIndex,
+        color: widget.color,
+      ),
+    );
+  }
+}
+
+// =========================================================
+// 🎨 ENGINE RYSOWANIA (ERASER BAR)
+// =========================================================
+
+class SweepPainter extends CustomPainter {
+  final List<double> dataPoints;
+  final int currentIndex;
+  final Color color;
+
+  // EBM: Wielkość gumki zmazującej stare EKG przed narysowaniem nowego (~5% ekranu)
+  static const int eraserGap = 15;
+
+  SweepPainter({
+    required this.dataPoints,
+    required this.currentIndex,
     required this.color,
   });
 
@@ -450,98 +560,62 @@ class EcgPainter extends CustomPainter {
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeJoin = StrokeJoin.round;
+
     final path = Path();
+    final double widthPerPoint = size.width / dataPoints.length;
+    final double midY =
+        size.height /
+        (color == Colors.yellowAccent ? 1.2 : 2); // EtCO2 rysujemy niżej
 
-    path.moveTo(0, size.height / 2);
-    for (double x = 0; x < size.width; x++) {
-      double y = size.height / 2;
+    bool isFirstPoint = true;
 
-      // EBM: ZAKŁÓCENIA OD UCIŚNIĘĆ KLP (Artefakty RKO ukrywają prawdziwy rytm!)
-      if (isCprActive) {
-        // Symulacja regularnych uciśnięć (ok 110/min) - ogromne wahania linii
-        y += math.sin(x * 0.08 + time * 12) * 35 + math.sin(x * 0.3) * 5;
-      }
-      // RYTMIKA
-      else if (rhythm == PatientRhythm.unknown) {
-        y += 0; // Płaska linia (niepodłączony)
-      } else if (rhythm == PatientRhythm.vf) {
-        // EBM MIGOTANIE KOMÓR: Hiper-realistyczny, chaotyczny wzorzec z filmu
-        // Sumujemy 3 fale: bujanie linii podstawowej (waxing/waning), główne fale VF oraz drobny szum
-        y +=
-            (math.sin(x * 0.03 + time * 3.5) * 22) *
-                math.cos(
-                  x * 0.015 - time,
-                ) + // Nisko-częstotliwościowe bujanie amplitudy
-            (math.sin(x * 0.08 - time * 4.5) *
-                12) + // Średnie, nieregularne wibracje
-            (math.sin(x * 0.25 + time * 8) * 4); // Drobny, "szarpany" szum
-      } else if (rhythm == PatientRhythm.pvt) {
-        // CZĘSTOSKURCZ KOMOROWY: Szerokie, regularne zęby piły / góry
-        y += (math.sin(x * 0.12 + time * 4).abs() * -45) + 20;
-      } else if (rhythm == PatientRhythm.asystole) {
-        // ASYSTOLIA: Delikatne pływanie linii izoelektrycznej, niemal płasko
-        y += math.sin(x * 0.02 + time) * 2 + math.sin(x * 0.1) * 0.5;
+    for (int i = 0; i < dataPoints.length; i++) {
+      // LOGIKA WYMAZYWACZA (Eraser Gap):
+      // Nie rysujemy linii w małym odstępie "przed" obecnym indeksem, aby oddzielić stare dane od nowych.
+      bool inEraser = false;
+      if (currentIndex + eraserGap < dataPoints.length) {
+        if (i >= currentIndex && i < currentIndex + eraserGap) inEraser = true;
       } else {
-        // PEA / ROSC (RYTM ZATOKOWY): Matematyczny model P-QRS-T
-        double phase = (x * 0.02 + time * 2) % 6.0; // Długość cyklu
-        if (phase > 0.5 && phase < 0.9) {
-          y -= 6 * math.sin((phase - 0.5) * math.pi / 0.4); // Załamek P
-        } else if (phase > 1.2 && phase < 1.5) {
-          double qrsPhase = phase - 1.2;
-          if (qrsPhase < 0.1)
-            y += 5; // Q
-          else if (qrsPhase < 0.2)
-            y -= 45; // R
-          else
-            y += 15; // S
-        } else if (phase > 1.8 && phase < 2.6) {
-          y -= 10 * math.sin((phase - 1.8) * math.pi / 0.8); // Załamek T
-        }
+        if (i >= currentIndex ||
+            i < (currentIndex + eraserGap) % dataPoints.length)
+          inEraser = true;
       }
 
-      path.lineTo(x, y);
+      if (inEraser) {
+        isFirstPoint = true; // Łamiemy ścieżkę, przerywamy linię
+        continue;
+      }
+
+      double x = i * widthPerPoint;
+      double y = midY + dataPoints[i];
+
+      if (isFirstPoint) {
+        path.moveTo(x, y);
+        isFirstPoint = false;
+      } else {
+        path.lineTo(x, y);
+      }
     }
+
     canvas.drawPath(path, paint);
-  }
 
-  @override
-  bool shouldRepaint(EcgPainter old) => true;
-}
-
-class Etco2Painter extends CustomPainter {
-  final double time;
-  final bool isEtco2Attached;
-  final bool isVentilated;
-  final Color color;
-  Etco2Painter({
-    required this.time,
-    required this.isEtco2Attached,
-    required this.isVentilated,
-    required this.color,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (!isEtco2Attached) return; // Brak czujnika
-    final paint = Paint()
+    // Opcjonalny bajer: mała "głowica" świecąca na czubku fali EKG (daje feeling CRT)
+    final headPaint = Paint()
       ..color = color
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-    final path = Path();
-    path.moveTo(0, size.height * 0.8);
-    for (double x = 0; x < size.width; x++) {
-      double y = size.height * 0.8;
-      if (isVentilated) {
-        double phase = (x * 0.02 + time) % 6;
-        if (phase < 2.5) y -= 25; // Kwadratowa fala wydechu EtCO2
-      }
-      path.lineTo(x, y);
-    }
-    canvas.drawPath(path, paint);
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(
+      Offset(currentIndex * widthPerPoint, midY + dataPoints[currentIndex]),
+      2.5,
+      headPaint,
+    );
   }
 
   @override
-  bool shouldRepaint(Etco2Painter old) => true;
+  bool shouldRepaint(SweepPainter old) {
+    // Ponieważ przekazujemy referencję do listy, a nie jej kopię,
+    // indeks służy nam jako główny wyzwalacz odrysowania
+    return old.currentIndex != currentIndex;
+  }
 }
 
 class GridPainter extends CustomPainter {
@@ -550,10 +624,12 @@ class GridPainter extends CustomPainter {
     final paint = Paint()
       ..color = Colors.green[900]!.withOpacity(0.3)
       ..strokeWidth = 0.5;
-    for (double i = 0; i < size.width; i += 15)
+    for (double i = 0; i < size.width; i += 15) {
       canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    for (double i = 0; i < size.height; i += 15)
+    }
+    for (double i = 0; i < size.height; i += 15) {
       canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+    }
   }
 
   @override
