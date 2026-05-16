@@ -15,12 +15,11 @@ class FeedbackScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Obliczanie CPR Fraction
     double cprFraction = 0;
     if (state.totalElapsedGameTime > 0) {
       cprFraction = (state.totalCprSeconds / state.totalElapsedGameTime) * 100;
     }
-    // --- LOGIKA OCENY DRÓG ODDECHOWYCH ---
+
     String airwayFeedback = "";
     Color airwayColor = Colors.grey;
     if (state.airwayStatus == AirwayType.endotracheal &&
@@ -41,10 +40,31 @@ class FeedbackScreen extends StatelessWidget {
 
     bool isRosc = state.patient.hasPulse;
 
+    // FILTROWANIE LOGÓW DO OSOBNYCH RAMEK:
+    final successes = state.auditLog
+        .where((l) => l.contains("SUKCES"))
+        .toList();
+    final errors = state.auditLog
+        .where(
+          (l) =>
+              l.contains("BŁĄD") ||
+              l.contains("OSTRZEŻENIE") ||
+              l.contains("STRATA CZASU"),
+        )
+        .toList();
+    final neutral = state.auditLog
+        .where(
+          (l) =>
+              !l.contains("SUKCES") &&
+              !l.contains("BŁĄD") &&
+              !l.contains("OSTRZEŻENIE") &&
+              !l.contains("STRATA CZASU"),
+        )
+        .toList();
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        // ZMIANA 1: Główny kontener staje się przewijalny jak strona www!
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
@@ -63,17 +83,6 @@ class FeedbackScreen extends StatelessWidget {
               ),
               const Divider(color: Colors.grey, height: 40),
 
-              Text(
-                "PODSUMOWANIE AKCJI RATUNKOWEJ",
-                style: TextStyle(
-                  color: Colors.blue[300],
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // STATYSTYKI KLUCZOWE
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -96,7 +105,6 @@ class FeedbackScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
 
-              // NOWY KAFELEK DLA DRÓG ODDECHOWYCH
               Card(
                 color: Colors.grey[850],
                 child: Padding(
@@ -120,9 +128,8 @@ class FeedbackScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // ANALIZA 4H4T
               const Text(
-                "Prawdziwa Przyczyna (Wg. Sekcji Zwłok / Kardiologa):",
+                "Prawdziwa Przyczyna Zatrzymania:",
                 style: TextStyle(color: Colors.grey),
               ),
               Text(
@@ -135,35 +142,33 @@ class FeedbackScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // MĄDROŚCI INSTRUKTORA (Błędy Krytyczne)
-              if (state.instructorFeedback.isNotEmpty) ...[
+              // SEKCJA 1: SUKCESY EBM (ZIELONA RAMKA)
+              if (successes.isNotEmpty) ...[
                 const Text(
-                  "BŁĘDY KRYTYCZNE (ZAGROŻENIE ŻYCIA):",
+                  "SUKCESY I DOBRE PRAKTYKI (EBM)",
                   style: TextStyle(
-                    color: Colors.redAccent,
+                    color: Colors.greenAccent,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 5),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red[900]?.withOpacity(0.2),
+                    color: Colors.green[900]!.withOpacity(0.2),
+                    border: Border.all(color: Colors.green),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: state.instructorFeedback
+                    children: successes
                         .map(
-                          (fb) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6.0),
+                          (s) => Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
                             child: Text(
-                              "• $fb",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
+                              "✅ ${s.substring(s.indexOf(']') + 2)}",
+                              style: const TextStyle(color: Colors.white),
                             ),
                           ),
                         )
@@ -173,117 +178,64 @@ class FeedbackScreen extends StatelessWidget {
                 const SizedBox(height: 20),
               ],
 
-              // OBSZARY DO POPRAWY (Mniejsze błędy EBM i przeoczenia)
-              Builder(
-                builder: (context) {
-                  List<String> minorErrors = state.auditLog
-                      .where(
-                        (log) =>
-                            (log.contains("BŁĄD EBM") ||
-                                log.contains("OSTRZEŻENIE")) &&
-                            !log.contains("KRYTYCZNY"),
-                      )
-                      .toList();
-                  if (minorErrors.isEmpty) return const SizedBox.shrink();
-                  return Column(
+              // SEKCJA 2: BŁĘDY I OSTRZEŻENIA (CZERWONA RAMKA)
+              if (errors.isNotEmpty || state.instructorFeedback.isNotEmpty) ...[
+                const Text(
+                  "BŁĘDY KRYTYCZNE I OSTRZEŻENIA",
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red[900]!.withOpacity(0.2),
+                    border: Border.all(color: Colors.red),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "OBSZARY DO POPRAWY (Wytyczne EBM):",
-                        style: TextStyle(
-                          color: Colors.orangeAccent,
-                          fontWeight: FontWeight.bold,
+                      ...state.instructorFeedback.map(
+                        (fb) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            "💀 $fb",
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.orange[900]?.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: minorErrors
-                              .map(
-                                (err) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 6.0),
-                                  child: Text(
-                                    "• ${err.substring(err.indexOf(']') + 2)}",
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList(),
+                      ...errors.map(
+                        (e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            "❌ ${e.substring(e.indexOf(']') + 2)}",
+                            style: const TextStyle(color: Colors.white70),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 20),
                     ],
-                  );
-                },
-              ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
 
-              // CO POSZŁO DOBRZE (Sukcesy EBM)
-              Builder(
-                builder: (context) {
-                  List<String> successes = state.auditLog
-                      .where((log) => log.contains("SUKCES EBM"))
-                      .toList();
-                  if (successes.isEmpty) return const SizedBox.shrink();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "CO ZROBIONO DOBRZE:",
-                        style: TextStyle(
-                          color: Colors.greenAccent,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.green[900]?.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: successes
-                              .map(
-                                (suc) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 6.0),
-                                  child: Text(
-                                    "• ${suc.substring(suc.indexOf(']') + 2)}",
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                  );
-                },
-              ),
-
-              // LOG AUDYTORSKI (Pełen)
+              // SEKCJA 3: DZIENNIK ZDARZEŃ (SZARA RAMKA)
               const Text(
-                "PEŁEN DZIENNIK ZDARZEŃ (RAPORT Z DEFIBRYLATORA):",
+                "PEŁEN DZIENNIK INTERWENCJI",
                 style: TextStyle(
-                  color: Colors.purpleAccent,
+                  color: Colors.grey,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 10),
-              // ZMIANA 2 i 3: Usunięto Expanded. Dodano shrinkWrap i NeverScrollableScrollPhysics.
+              const SizedBox(height: 5),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -291,30 +243,19 @@ class FeedbackScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: ListView.builder(
-                  shrinkWrap:
-                      true, // Zmusza listę do obliczenia swojej całkowitej wysokości
-                  physics:
-                      const NeverScrollableScrollPhysics(), // Wyłącza lokalne przewijanie tej listy
-                  itemCount: state.auditLog.length,
-                  itemBuilder: (context, index) {
-                    String log = state.auditLog[index];
-                    Color c = Colors.white70;
-                    if (log.contains("KRYTYCZNY BŁĄD"))
-                      c = Colors.redAccent;
-                    else if (log.contains("BŁĄD EBM") ||
-                        log.contains("OSTRZEŻENIE"))
-                      c = Colors.orangeAccent;
-                    else if (log.contains("SUKCES"))
-                      c = Colors.greenAccent;
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2.0),
-                      child: Text(
-                        log,
-                        style: TextStyle(color: c, fontSize: 12),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: neutral.length,
+                  itemBuilder: (context, index) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: Text(
+                      "• ${neutral[index]}",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -326,7 +267,7 @@ class FeedbackScreen extends StatelessWidget {
                 ),
                 icon: const Icon(Icons.refresh, color: Colors.white),
                 label: const Text(
-                  "POWRÓT DO DYSPOZYTORNI (NOWE WEZWANIE)",
+                  "POWRÓT DO DYSPOZYTORNI",
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

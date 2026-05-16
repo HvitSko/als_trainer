@@ -210,6 +210,39 @@ class GameEngine extends ChangeNotifier {
   }
 
   void startCpr() {
+    // --- WERYFIKACJA EBM: BADANIE TĘTNA ---
+    int lastAnalysisIndex = state.auditLog.indexWhere(
+      (log) => log.contains("Analiza EKG"),
+    );
+    if (lastAnalysisIndex == -1) lastAnalysisIndex = state.auditLog.length;
+
+    // Sprawdzamy czy od momentu ostatniego zatrzymania RKO zbadano tętno na dużej tętnicy
+    bool pulseCheckedRecently = state.auditLog
+        .sublist(0, lastAnalysisIndex)
+        .any(
+          (log) =>
+              log.contains("Palec - Szyja") ||
+              log.contains("Palec - Nadgarstek"),
+        );
+
+    if (state.totalCprSeconds == 0 && !pulseCheckedRecently) {
+      state.criticalErrorsCount++;
+      _logEvent(
+        "BŁĄD KRYTYCZNY EBM: Rozpoczęto RKO bez uprzedniego zbadania tętna na dużej tętnicy (Szyja)!",
+        isError: true,
+      );
+    } else if (state.totalCprSeconds > 0 &&
+        (state.monitorRhythm == PatientRhythm.pea ||
+            state.monitorRhythm == PatientRhythm.pvt) &&
+        !pulseCheckedRecently) {
+      state.criticalErrorsCount++;
+      _logEvent(
+        "BŁĄD KRYTYCZNY EBM: Powrót do RKO przy rytmie zorganizowanym (PEA/VT) bez uprzedniego sprawdzenia tętna Palcem!",
+        isError: true,
+      );
+    }
+    // --------------------------------------
+
     state.isCprActive = true;
     state.cprSecondsRemaining = 120;
     state.currentPhase = ResuscitationPhase.cprCycle;
@@ -246,7 +279,35 @@ class GameEngine extends ChangeNotifier {
   }
 
   void deliverShock() {
-    if (!state.isDefibCharged) return;
+    if (!state.isMonitorOn || !state.isDefibCharged) return;
+
+    int shockEnergy = state.selectedEnergy;
+
+    // --- WERYFIKACJA EBM: TĘTNO PRZY VT ---
+    int lastAnalysisIndex = state.auditLog.indexWhere(
+      (log) => log.contains("Analiza EKG"),
+    );
+    if (lastAnalysisIndex == -1) lastAnalysisIndex = state.auditLog.length;
+
+    bool pulseCheckedRecently = state.auditLog
+        .sublist(0, lastAnalysisIndex)
+        .any(
+          (log) =>
+              log.contains("Palec - Szyja") ||
+              log.contains("Palec - Nadgarstek"),
+        );
+
+    if (state.monitorRhythm == PatientRhythm.pvt && !pulseCheckedRecently) {
+      state.criticalErrorsCount++;
+      _logEvent(
+        "BŁĄD KRYTYCZNY EBM: Wykonano defibrylację w rytmie zorganizowanym (VT) bez sprawdzenia tętna! A co jeśli to był częstoskurcz z tętnem (ROSC)?!",
+        isError: true,
+      );
+    }
+    _logEvent("BŁYSK: Wykonano defibrylację energią $shockEnergy J.");
+
+    state.isDefibCharged = false;
+    state.isDefibCharging = false;
     bool isFirstShock = state.shocksDelivered == 0;
     bool isValidShockTiming =
         isFirstShock ||
@@ -329,6 +390,22 @@ class GameEngine extends ChangeNotifier {
     bool isShockable =
         state.monitorRhythm == PatientRhythm.vf ||
         state.monitorRhythm == PatientRhythm.pvt;
+    if (drugName == "Nalokson") {
+      _logEvent("AKCJA: Podano Nalokson ($dose).");
+      try {
+        if (state.patient.hiddenCause == ReversibleCause.toxins) {
+          _logEvent(
+            "SUKCES EBM: Odtrutka podana właściwie. Częstość oddechów rośnie.",
+          );
+        } else {
+          _logEvent("INFO: Brak nagłej reakcji po podaniu Naloksonu.");
+        }
+      } catch (e) {
+        print("Skippy uratował apkę przed crashem: $e");
+      }
+      notifyListeners();
+      return; // Koniec tury dla tego leku
+    }
 
     if (drugName == "Adrenalina") {
       if (dose != "1 mg") {
@@ -468,9 +545,11 @@ class GameEngine extends ChangeNotifier {
     closeMenus(); // Zamykamy HUD, żeby zrobić miejsce na ekranie pacjenta!
 
     // Logika EBM: Nie da się preoksygenować powietrzem z pokoju i bez sprzętu
-    if (state.airwayStatus != AirwayType.bvm || state.oxygenFlow < 15) {
+    if ((state.airwayStatus != AirwayType.bvm &&
+            state.airwayStatus != AirwayType.igel) ||
+        state.oxygenFlow < 15) {
       _logEvent(
-        "BŁĄD EBM: Preoksygenacja wymaga założonego worka BVM i przepływu tlenu min. 15 l/min!",
+        "BŁĄD EBM: Preoksygenacja wymaga założonego worka BVM lub I-gela oraz przepływu tlenu min. 15 l/min!",
         isError: true,
       );
       notifyListeners();
@@ -680,6 +759,33 @@ class GameEngine extends ChangeNotifier {
   // --- NOWY SYSTEM: INTERAKTYWNE BADANIE (DRAG & DROP) ---
   String performTargetedExam(String tool, String target) {
     state.isPhysicalExamDone = true;
+    if (tool == "Palec") {
+      String result = "";
+      if (target.contains("Nadgarstek")) {
+        result = state.patient.hasPulse
+            ? "Tętno promieniowe wyczuwalne."
+            : "Brak tętna na tętnicach promieniowych.";
+      } else if (target.contains("Stopa")) {
+        result = state.patient.hasPulse
+            ? "Tętno na grzbiecie stopy obecne."
+            : "Brak tętna na stopach.";
+      } else if (target.contains("Szyja")) {
+        result = state.patient.hasPulse
+            ? "Tętno na tętnicach szyjnych mocne."
+            : "BRAK TĘTNA na tętnicach szyjnych!";
+      } else if (target.contains("Klatka")) {
+        result = "Skóra blada, chłodna, lepka od potu.";
+      } else if (target.contains("brzusze")) {
+        result = "Brzuch miękki, niebolesny.";
+      } else {
+        result = "Brak specyficznych odchyleń.";
+      }
+
+      // MAGIA SKIPPY'EGO: Gra w końcu "widzi", że użyłeś palca!
+      _logEvent("BADANIE (Palec - $target): $result");
+      notifyListeners();
+      return result;
+    }
 
     if (tool == "Latarka" && target == "Głowa") {
       _logEvent(
@@ -732,7 +838,7 @@ class GameEngine extends ChangeNotifier {
     // ZMIANA: Nawiasy zabezpieczające logikę Boole'a!
     else if (tool == "Glukometr" &&
         (target.contains("Dłoń") ||
-            target.contains("Noga") ||
+            target.contains("Stopa") || // ZMIANA Z "Noga" NA "Stopa"
             target.contains("Zgięcie"))) {
       state.isGlucoseMeasured = true;
       _logEvent(
@@ -741,10 +847,12 @@ class GameEngine extends ChangeNotifier {
       notifyListeners();
       return "Glikemia:\n${state.patient.bloodGlucose} mg/dL";
     } else if (tool == "Pulsoksymetr" &&
-        (target.contains("Dłoń") || target.contains("Noga"))) {
+        (target.contains("Dłoń") || target.contains("Stopa"))) {
+      // ZMIANA Z "Noga" NA "Stopa"
       attachSpO2();
       return "Założono klips SpO2\n(Odczyt na monitorze)";
     } else if (tool == "USG: Hokus POCUS") {
+      state.isUsgDone = true;
       if (target == "Nadbrzusze") {
         bool tamp = state.patient.hiddenCause == ReversibleCause.tamponade;
         _logEvent(
@@ -801,8 +909,19 @@ class GameEngine extends ChangeNotifier {
         (target.contains("Klatka") || target.contains("brzusze"))) {
       provideThermalComfort();
       return "Pacjent zabezpieczony termicznie.";
-    } else if (tool == "Oglądanie" || tool == "Badanie Fizykalne") {
-      if (target == "Szyja") {
+    }
+    if (tool == "Oglądanie" || tool == "Badanie Fizykalne") {
+      if (target.contains("Klatka")) {
+        _logEvent(
+          "BADANIE: Klatka piersiowa. BRAK WIDOCZNYCH KRWOTOKÓW ZEWNĘTRZNYCH.",
+        );
+        notifyListeners();
+        return "Klatka unosi się symetrycznie. Brak ran penetrujących, BRAK WIDOCZNYCH KRWOTOKÓW ZEWNĘTRZNYCH.";
+      } else if (target.contains("brzusze")) {
+        _logEvent("BADANIE: Brzuch. BRAK WIDOCZNYCH KRWOTOKÓW ZEWNĘTRZNYCH.");
+        notifyListeners();
+        return "Powłoki brzuszne wysklepione. BRAK WIDOCZNYCH KRWOTOKÓW ZEWNĘTRZNYCH.";
+      } else if (target == "Szyja") {
         bool isDistended =
             (state.patient.hiddenCause == ReversibleCause.tensionPneumothorax ||
             state.patient.hiddenCause == ReversibleCause.tamponade);
@@ -812,12 +931,16 @@ class GameEngine extends ChangeNotifier {
         _logEvent("BADANIE: Oceniono szyję. $jvdText");
         notifyListeners();
         return "Szyja:\n$jvdText";
-      } else if (target.contains("Noga")) {
+      } else if (target.contains("Noga") ||
+          target.contains("Stopa") ||
+          target.contains("Nadgarstek") ||
+          target.contains("Dłoń") ||
+          target.contains("Zgięcie")) {
         _logEvent(
-          "BADANIE: Oceniono $target. Brak widocznych obrzęków obwodowych.",
+          "BADANIE: Kończyny. Brak obrzęków i BRAK WIDOCZNYCH KRWOTOKÓW.",
         );
         notifyListeners();
-        return "$target:\nBrak obrzęków";
+        return "Kończyny symetryczne. Brak obrzęków i krwotoków.";
       } else if (target == "Głowa") {
         _logEvent(
           "BADANIE: Twarz/Głowa. Skóra ${state.patient.skinCondition.toLowerCase()}.",
@@ -825,9 +948,11 @@ class GameEngine extends ChangeNotifier {
         notifyListeners();
         return "Twarz:\nSkóra ${state.patient.skinCondition.toLowerCase()}";
       } else {
-        _logEvent("BADANIE: $target. Skóra: ${state.patient.skinCondition}.");
+        _logEvent(
+          "BADANIE: $target. Skóra: ${state.patient.skinCondition}. Brak zewnętrznych krwotoków.",
+        );
         notifyListeners();
-        return "$target:\nSkóra: ${state.patient.skinCondition}";
+        return "Skóra blada. Brak uszkodzeń i krwotoków zewnętrznych w tej strefie.";
       }
     }
     // --- NOWY BLOK: NARZĘDZIA ODDECHOWE (DRAG & DROP) ---

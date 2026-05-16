@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../logic/game_engine.dart';
-import '../widgets/inventory/intubation_minigame_dialog.dart'; // WAŻNE!
+import '../widgets/inventory/intubation_minigame_dialog.dart';
 import '../widgets/inventory/iv_minigame_dialog.dart';
+import '../models/als_state.dart'; // MAGIA SKIPPY'EGO: Brakujący import, który wywalał błąd!
 import 'dart:async';
 
 class PatientView extends StatefulWidget {
@@ -20,7 +21,7 @@ class _PatientViewState extends State<PatientView>
   String _hoveredZone = "";
   Timer? _resultTimer;
   String? _equippedTool;
-  bool _showIvMenu = false; // NOWE: Czy pokazujemy rozmiary wenflonów?
+  bool _showIvMenu = false;
   bool _showIgelMenu = false;
 
   int _lastLogCount = 0;
@@ -36,19 +37,15 @@ class _PatientViewState extends State<PatientView>
 
   @override
   void dispose() {
-    // Odpinamy ucho, żeby nie wywołać wycieku pamięci!
     widget.engine.removeListener(_onEngineChange);
     _resultTimer?.cancel();
     _hudLogTimer?.cancel();
     super.dispose();
   }
 
-  // Ta funkcja odpala się za każdym razem, gdy engine robi notifyListeners()
-  // Ta funkcja odpala się za każdym razem, gdy engine robi notifyListeners()
   void _onEngineChange() {
     if (!mounted) return;
 
-    // ZMIANA EBM: Sprawdzamy stan filtru logów (state.log), a nie pełnego audytu (state.auditLog)
     if (widget.engine.state.log.length > _lastLogCount) {
       String newLog = widget.engine.state.log.first;
       String cleanLog = newLog.contains("]")
@@ -68,7 +65,9 @@ class _PatientViewState extends State<PatientView>
   }
 
   void _showResult(String tool, String target) {
-    // SPECJALNY PRZYPADEK: RURKA ETI WYWALA MINIGRĘ I SPRAWDZA TLEN!
+    if (tool != "USG: Hokus POCUS" && tool != "Stetoskop") {
+      setState(() => _equippedTool = null);
+    }
     if (tool == "Rurka ETI" && target == "Głowa") {
       setState(() => _equippedTool = null);
 
@@ -123,6 +122,8 @@ class _PatientViewState extends State<PatientView>
         return Icons.monitor_heart;
       case "Oglądanie":
         return Icons.visibility;
+      case "Palec":
+        return Icons.touch_app; // NOWOŚĆ!
       case "USG: Hokus POCUS":
         return Icons.waves;
       case "Folia NRC":
@@ -140,8 +141,8 @@ class _PatientViewState extends State<PatientView>
     if (_equippedTool == null) return baseTarget;
     if (_equippedTool == "USG: Hokus POCUS") {
       if (baseTarget.contains("Klatka")) return "USG: Opłucna";
-      if (baseTarget == "Bok Prawy") return "USG: Morison";
-      if (baseTarget == "Bok Lewy") return "USG: Śledziona";
+      if (baseTarget == "Bok Prawy") return "USG: Zachyłek Morisona";
+      if (baseTarget == "Bok Lewy") return "USG: Zachyłek Kellera";
       if (baseTarget == "Nadbrzusze") return "USG: Serce";
       if (baseTarget == "Podbrzusze") return "USG: Miednica";
     } else if (_equippedTool == "Stetoskop") {
@@ -150,12 +151,18 @@ class _PatientViewState extends State<PatientView>
       if (baseTarget.contains("Klatka")) return "Osłuchaj: Szczyty";
     } else if (_equippedTool == "Glukometr" ||
         _equippedTool == "Pulsoksymetr") {
-      if (baseTarget.contains("Dłoń") || baseTarget.contains("Noga"))
+      if (baseTarget.contains("Dłoń") || baseTarget.contains("Stopa"))
         return "Nakłuj / Klips";
     } else if (_equippedTool == "Worek BVM" ||
         _equippedTool == "Rurka ETI" ||
         _equippedTool!.contains("I-gel")) {
       if (baseTarget == "Głowa") return "ZABEZPIECZ DROGI";
+    } else if (_equippedTool == "Palec") {
+      if (baseTarget.contains("Nadgarstek") ||
+          baseTarget.contains("Stopa") ||
+          baseTarget == "Szyja")
+        return "Sprawdź Tętno";
+      return "Omacaj";
     }
     return baseTarget;
   }
@@ -164,20 +171,17 @@ class _PatientViewState extends State<PatientView>
   Widget build(BuildContext context) {
     super.build(context);
     return Container(
-      color: const Color(0xFF1A1A1A), // Neutralne, ciemnoszare tło (Mata SOR)
+      color: const Color(0xFF1A1A1A),
       child: Stack(
         children: [
-          // =========================================================
-          // WARSTWA 1: PACJENT (Responsywna Siatka Anatomiczna z Zoomem)
-          // =========================================================
           Positioned.fill(
             child: InteractiveViewer(
               panEnabled: true,
-              minScale: 1.0, // Zablokowane zbytnie oddalanie
-              maxScale: 3.5, // Pozwala na precyzyjny zoom na żyły
+              minScale: 1.0,
+              maxScale: 3.5,
               child: Center(
                 child: AspectRatio(
-                  aspectRatio: 1536 / 1024, // BLOKADA PROPORCJI
+                  aspectRatio: 1536 / 1024,
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final w = constraints.maxWidth;
@@ -185,7 +189,6 @@ class _PatientViewState extends State<PatientView>
 
                       return Stack(
                         children: [
-                          // Tło pacjenta dopasowane idealnie do AspectRatio
                           Positioned.fill(
                             child: Image.asset(
                               'assets/images/patient_body.png',
@@ -200,8 +203,6 @@ class _PatientViewState extends State<PatientView>
                             ),
                           ),
 
-                          // --- ZNACZNIKI DIAGNOSTYCZNE (PRZELICZANE DYNAMICZNIE) ---
-                          // System używa Twoich starych koordynatów, przeliczając je na procenty matrycy!
                           _buildResponsiveZone(
                             "Głowa",
                             -0.76,
@@ -312,8 +313,8 @@ class _PatientViewState extends State<PatientView>
                           ),
                           _buildResponsiveZone(
                             "Noga Lewa",
-                            0.85,
-                            -0.27,
+                            0.69,
+                            -0.17,
                             140,
                             100,
                             w,
@@ -321,13 +322,92 @@ class _PatientViewState extends State<PatientView>
                           ),
                           _buildResponsiveZone(
                             "Noga Prawa",
-                            0.85,
-                            0.32,
+                            0.69,
+                            0.21,
                             140,
                             100,
                             w,
                             h,
                           ),
+
+                          // NOWE HITBOXY TĘTNA!
+                          _buildResponsiveZone(
+                            "Nadgarstek Lewy",
+                            -0.06,
+                            -0.42,
+                            70,
+                            70,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Nadgarstek Prawy",
+                            -0.06,
+                            0.43,
+                            70,
+                            70,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Stopa Lewa",
+                            0.82,
+                            -0.24,
+                            80,
+                            80,
+                            w,
+                            h,
+                          ),
+                          _buildResponsiveZone(
+                            "Stopa Prawa",
+                            0.82,
+                            0.29,
+                            80,
+                            80,
+                            w,
+                            h,
+                          ),
+
+                          // --- MARKERY WIZUALNE SPRZĘTU (EBM OVERLAYS) ---
+                          if (widget.engine.state.isWarmingProvided)
+                            Positioned.fill(
+                              // SKIPPY FIX: IgnorePointer sprawia, że folia jest widoczna, ale przepuszcza wszystkie kliknięcia i przeciągnięcia pod spód!
+                              child: IgnorePointer(
+                                child: Container(
+                                  color: Colors.yellowAccent.withOpacity(0.15),
+                                ),
+                              ),
+                            ),
+
+                          if (widget.engine.state.airwayStatus !=
+                              AirwayType.none)
+                            _buildVisualOverlay(
+                              -0.76,
+                              -0.11,
+                              Icons.masks,
+                              Colors.blueAccent,
+                              w,
+                              h,
+                            ),
+
+                          if (widget.engine.state.isIvInserted)
+                            _buildVisualOverlay(
+                              -0.26,
+                              -0.36,
+                              Icons.colorize,
+                              Colors.pinkAccent,
+                              w,
+                              h,
+                            ),
+                          if (widget.engine.state.isSpO2Attached)
+                            _buildVisualOverlay(
+                              0.10,
+                              -0.42,
+                              Icons.monitor_heart,
+                              Colors.cyanAccent,
+                              w,
+                              h,
+                            ),
                         ],
                       );
                     },
@@ -337,11 +417,6 @@ class _PatientViewState extends State<PatientView>
             ),
           ),
 
-          // =========================================================
-          // WARSTWA 2: HUD I EKWIPUNEK (Zablokowane na ekranie)
-          // =========================================================
-
-          // --- ETYKIETA "GRUBY PALEC" (Fat Finger HUD) ---
           if (_hoveredZone.isNotEmpty && _equippedTool != null)
             Positioned(
               top: 90,
@@ -376,7 +451,6 @@ class _PatientViewState extends State<PatientView>
               ),
             ),
 
-          // --- GÓRNY HUD: POWIADOMIENIA Z DZIENNIKA (EBM) ---
           Builder(
             builder: (context) {
               bool isRoutineExamLog =
@@ -384,11 +458,9 @@ class _PatientViewState extends State<PatientView>
                   _hudLog.startsWith("USG:") ||
                   _hudLog.startsWith("AKCJA: Założono") ||
                   _hudLog.startsWith("DIAGNOZA");
-
               bool showHud =
                   _hudLog.isNotEmpty &&
                   !(isRoutineExamLog && _examResult.isNotEmpty);
-
               if (!showHud) return const SizedBox.shrink();
 
               return Positioned(
@@ -437,7 +509,6 @@ class _PatientViewState extends State<PatientView>
             },
           ),
 
-          // --- WYNIKI POP-UP ---
           if (_examResult.isNotEmpty)
             Positioned(
               top: 150,
@@ -467,12 +538,32 @@ class _PatientViewState extends State<PatientView>
               ),
             ),
 
+          // --- NARZĘDZIA PODRĘCZNE (Palec i Oko ZAWSZE NA WIERZCHU) ---
+          Positioned(
+            top: 20,
+            right: 80,
+            child: Column(
+              children: [
+                _buildFloatingToolButton(
+                  "Oglądanie",
+                  Icons.visibility,
+                  Colors.purpleAccent,
+                ),
+                const SizedBox(height: 10),
+                _buildFloatingToolButton(
+                  "Palec",
+                  Icons.touch_app,
+                  Colors.pinkAccent,
+                ),
+              ],
+            ),
+          ),
+
           // --- INTERFEJS NARZĘDZI ---
           if (_equippedTool == null) ...[
             if (widget.engine.state.isBagOpen) _buildBagOverlay(),
             if (widget.engine.state.isAirwayMenuOpen) _buildAirwayOverlay(),
           ] else ...[
-            // KOSZ / ODKŁADANIE
             Positioned(
               bottom: 130,
               left: 30,
@@ -500,7 +591,6 @@ class _PatientViewState extends State<PatientView>
                 ),
               ),
             ),
-            // NARZĘDZIE W RĘKU
             Positioned(
               bottom: 130,
               right: 30,
@@ -555,11 +645,6 @@ class _PatientViewState extends State<PatientView>
     );
   }
 
-  // =========================================================
-  // METODY POMOCNICZE UI
-  // =========================================================
-
-  // NAKŁADKA: TORBA DIAGNOSTYCZNA
   Widget _buildBagOverlay() {
     return Positioned(
       bottom: 120,
@@ -620,7 +705,7 @@ class _PatientViewState extends State<PatientView>
                           ),
                         ),
                       ),
-                      _buildToolEquipButton("Oglądanie", Icons.visibility),
+                      // USUNIĘTO OKO Z TORBY! ZNAJDUJE SIĘ NA ZEWNĄTRZ!
                       _buildToolEquipButton("Latarka", Icons.highlight),
                       _buildToolEquipButton(
                         "Stetoskop",
@@ -663,7 +748,6 @@ class _PatientViewState extends State<PatientView>
     );
   }
 
-  // NAKŁADKA: ODDECH I DROGI ODDECHOWE
   Widget _buildAirwayOverlay() {
     return Positioned(
       bottom: 120,
@@ -691,7 +775,7 @@ class _PatientViewState extends State<PatientView>
                       backgroundColor: Colors.blue[900],
                     ),
                     onPressed: widget.engine.performManualAirwayManeuver,
-                    child: const Text("Rękoczyn Udrożnienia"),
+                    child: const Text("Udrożnij drogi oddechowe"), // NOWA NAZWA
                   ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
@@ -850,11 +934,6 @@ class _PatientViewState extends State<PatientView>
     );
   }
 
-  // =========================================================
-  // MAGIA RESPANSYWNOŚCI (KWANTOWY PRZELICZNIK)
-  // =========================================================
-
-  /// Ta funkcja bierze Twoje stare współrzędne z Align i zamienia je na relatywne pozycjonowanie w matrycy.
   Widget _buildResponsiveZone(
     String baseTarget,
     double alignX,
@@ -864,16 +943,11 @@ class _PatientViewState extends State<PatientView>
     double maxWidth,
     double maxHeight,
   ) {
-    // 1. Zamiana współrzędnych Alignment (-1.0 do 1.0) na ułamki dziesiętne (0.0 do 1.0)
     double percentX = (alignX + 1) / 2;
     double percentY = (alignY + 1) / 2;
-
-    // 2. Skalowanie wymiarów (utrzymujemy Twój stary scaleFactor 0.6)
     double scaleFactor = 0.6;
     double w = (baseWidth * scaleFactor) / 1536 * maxWidth;
     double h = (baseHeight * scaleFactor) / 1024 * maxHeight;
-
-    // 3. Obliczanie pozycji lewego górnego rogu hitboxa
     double left = (maxWidth * percentX) - (w / 2);
     double top = (maxHeight * percentY) - (h / 2);
 
@@ -903,10 +977,7 @@ class _PatientViewState extends State<PatientView>
       },
       builder: (context, candidateData, rejectedData) {
         bool isHovered = candidateData.isNotEmpty;
-
-        // Zwracamy SizedBox.expand(), dzięki czemu hitbox zajmuje całe wyznaczone mu wyżej pole Positioned
         if (_equippedTool == null) return const SizedBox.expand();
-
         return Container(
           decoration: BoxDecoration(
             color: isHovered
@@ -920,6 +991,48 @@ class _PatientViewState extends State<PatientView>
           ),
         );
       },
+    );
+  }
+
+  // --- ZUPEŁNIE NOWE METODY POMOCNICZE UI ---
+
+  Widget _buildFloatingToolButton(String name, IconData icon, Color color) {
+    bool isActive = _equippedTool == name;
+    return FloatingActionButton(
+      heroTag: name,
+      backgroundColor: isActive ? color : Colors.grey[800],
+      onPressed: () => setState(() {
+        _equippedTool = isActive ? null : name;
+        widget.engine.closeMenus();
+      }),
+      child: Icon(icon, color: Colors.white),
+    );
+  }
+
+  Widget _buildVisualOverlay(
+    double alignX,
+    double alignY,
+    IconData icon,
+    Color color,
+    double maxWidth,
+    double maxHeight,
+  ) {
+    double percentX = (alignX + 1) / 2;
+    double percentY = (alignY + 1) / 2;
+    return Positioned(
+      left: (maxWidth * percentX) - 20,
+      top: (maxHeight * percentY) - 20,
+      child: IgnorePointer(
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.8),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          child: Icon(icon, color: Colors.white, size: 24),
+        ),
+      ),
     );
   }
 }

@@ -450,6 +450,10 @@ class _MonitorViewState extends State<MonitorView>
                                                 isVentilated:
                                                     state.airwayStatus !=
                                                     AirwayType.none,
+                                                // SKIPPY FIX: Podajemy kable sygnałowe RKO i Tętna do wykresu!
+                                                isCprActive: state.isCprActive,
+                                                hasPulse:
+                                                    state.patient.hasPulse,
                                                 ecgGain: 1.0,
                                                 color: Colors.yellowAccent,
                                               ),
@@ -822,9 +826,21 @@ class _SweepWaveDisplayState extends State<SweepWaveDisplay>
         }
       }
     } else if (widget.waveType == WaveType.etco2) {
-      if (widget.isAttached == true && widget.isVentilated == true) {
-        double phase = (_internalTime * 1.5) % 6;
-        if (phase < 2.5) y = -25;
+      if (widget.isAttached == true) {
+        // 1. Pacjent oddycha i jest wentylowany -> normalna fala kapnografii
+        if (widget.hasPulse == true && widget.isVentilated == true) {
+          double phase = (_internalTime * 1.5) % 6;
+          if (phase < 2.5) y = -25;
+        }
+        // 2. Pacjent w trakcie RKO -> mniejsze, szybsze fale wymuszone uciskami klatki
+        else if (widget.isCprActive == true) {
+          double phase = (_internalTime * 3.0) % 6;
+          if (phase < 2.5) y = -15;
+        }
+        // 3. Brak tętna, brak RKO -> płaska linia
+        else {
+          y = 0.0;
+        }
       }
     }
 
