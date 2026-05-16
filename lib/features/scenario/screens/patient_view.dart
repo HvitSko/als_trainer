@@ -12,7 +12,10 @@ class PatientView extends StatefulWidget {
   State<PatientView> createState() => _PatientViewState();
 }
 
-class _PatientViewState extends State<PatientView> {
+class _PatientViewState extends State<PatientView>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   String _examResult = "";
   String _hoveredZone = "";
   Timer? _resultTimer;
@@ -159,6 +162,7 @@ class _PatientViewState extends State<PatientView> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Container(
       color: const Color(0xFF1A1A1A), // Neutralne, ciemnoszare tło (Mata SOR)
       child: Stack(

@@ -23,6 +23,7 @@ class MainGameScreen extends StatefulWidget {
 class _MainGameScreenState extends State<MainGameScreen> {
   late GameEngine engine;
   final PageController _pageController = PageController(initialPage: 0);
+  int _currentPage = 0;
 
   @override
   void initState() {
@@ -71,83 +72,19 @@ class _MainGameScreenState extends State<MainGameScreen> {
                 // WARSTWA 1: Ekrany główne
                 PageView(
                   controller: _pageController,
+                  physics:
+                      const NeverScrollableScrollPhysics(), // Wyłącza swipe palcem!
+                  onPageChanged: (index) {
+                    setState(
+                      () => _currentPage = index,
+                    ); // Aktualizuje widok przycisków
+                  },
                   children: [
                     MonitorView(engine: engine),
                     PatientView(engine: engine),
                   ],
                 ),
 
-                // WARSTWA 3: SZYBKA NAWIGACJA (Przyciski nad narzędziami)
-                if (false)
-                  Positioned(
-                    bottom: 110,
-                    left: 0,
-                    right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blueGrey[900]?.withOpacity(
-                              0.85,
-                            ),
-                            foregroundColor: Colors.white,
-                            shape: const StadiumBorder(),
-                            side: const BorderSide(
-                              color: Colors.cyan,
-                              width: 1,
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.monitor_heart,
-                            size: 18,
-                            color: Colors.cyanAccent,
-                          ),
-                          label: const Text(
-                            "MONITOR",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          onPressed: () {
-                            _pageController.animateToPage(
-                              0,
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 20),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blueGrey[900]?.withOpacity(
-                              0.85,
-                            ),
-                            foregroundColor: Colors.white,
-                            shape: const StadiumBorder(),
-                            side: const BorderSide(
-                              color: Colors.greenAccent,
-                              width: 1,
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.person,
-                            size: 18,
-                            color: Colors.greenAccent,
-                          ),
-                          label: const Text(
-                            "PACJENT",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          onPressed: () {
-                            _pageController.animateToPage(
-                              1,
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
                 // --- WARSTWA: GLOBALNY TIMER RKO ---
                 if (engine.state.isCprActive)
                   Positioned(
@@ -255,67 +192,92 @@ class _MainGameScreenState extends State<MainGameScreen> {
                     ),
                   ),
 
-                // WARSTWA 4: Przyciski narzędzi
+                // WARSTWA 4: Inteligentna Nawigacja i Narzędzia
                 Positioned(
                   bottom: 20,
-                  left: 0,
-                  right: 0,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildOverlayButton(
-                        icon: Icons.medical_services,
-                        color: Colors.blue[900]!,
-                        label: "Ampularium",
-                        onPressed:
-                            (engine.state.isPreparingDrug ||
-                                engine.state.preparedDrugs.length >= 2)
-                            ? null
-                            : () => showDialog(
+                  left: 10,
+                  right: 10,
+                  child:
+                      _currentPage ==
+                          1 // JEŚLI JESTEŚMY W WIDOKU PACJENTA:
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildOverlayButton(
+                              icon: Icons.medical_services,
+                              color: Colors.blue[900]!,
+                              label: "Ampularium",
+                              onPressed:
+                                  (engine.state.isPreparingDrug ||
+                                      engine.state.preparedDrugs.length >= 2)
+                                  ? null
+                                  : () => showDialog(
+                                      context: context,
+                                      builder: (context) => AmpulariumDialog(
+                                        onDrugPrepared: (drug, dose) =>
+                                            engine.prepareDrug(drug, dose),
+                                      ),
+                                    ),
+                            ),
+                            _buildOverlayButton(
+                              icon: Icons.air,
+                              color: Colors.cyan[800]!,
+                              label: "Oddech",
+                              onPressed: () {
+                                engine.toggleAirwayMenu();
+                              },
+                            ),
+                            _buildOverlayButton(
+                              icon: Icons.backpack,
+                              color: Colors.orange[900]!,
+                              label: "Torba/Diag.",
+                              onPressed: () {
+                                engine.toggleBag();
+                              },
+                            ),
+                            _buildOverlayButton(
+                              icon: Icons.psychology,
+                              color: Colors.purple[800]!,
+                              label: "4H4T",
+                              onPressed: () => showDialog(
                                 context: context,
-                                builder: (context) => AmpulariumDialog(
-                                  onDrugPrepared: (drug, dose) =>
-                                      engine.prepareDrug(drug, dose),
+                                builder: (context) => H4TDialog(engine: engine),
+                              ),
+                            ),
+                            const SizedBox(width: 10), // Odstęp
+                            // PRZYCISK POWROTU DO MONITORA
+                            _buildOverlayButton(
+                              icon: Icons.monitor_heart,
+                              color: Colors.green[700]!,
+                              label: "MONITOR",
+                              onPressed: () => _pageController.animateToPage(
+                                0,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          // JEŚLI JESTEŚMY W WIDOKU MONITORA:
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Padding(
+                              // SKIPPY FIX: Zwiększono z 20.0 do 130.0, aby przycisk uciekł w lewo przed prawą kolumną przycisków!
+                              padding: const EdgeInsets.only(right: 130.0),
+                              child: _buildOverlayButton(
+                                icon: Icons.person,
+                                color: Colors.green[700]!,
+                                label: "WIDOK\nPACJENTA",
+                                onPressed: () => _pageController.animateToPage(
+                                  1,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
                                 ),
                               ),
-                      ),
-                      _buildOverlayButton(
-                        icon: Icons.air,
-                        color: Colors.cyan[800]!,
-                        label: "Oddech",
-                        onPressed: () {
-                          engine.toggleAirwayMenu();
-                          _pageController.animateToPage(
-                            1,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                      ),
-                      _buildOverlayButton(
-                        icon: Icons.backpack,
-                        color: Colors.orange[900]!,
-                        label: "Torba/Diagnostyka",
-                        onPressed: () {
-                          engine.toggleBag();
-                          _pageController.animateToPage(
-                            1,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                      ),
-                      _buildOverlayButton(
-                        icon: Icons.psychology,
-                        color: Colors.purple[800]!,
-                        label: "4H4T",
-                        onPressed: () => showDialog(
-                          context: context,
-                          builder: (context) => H4TDialog(engine: engine),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
                 ),
                 // NAKŁADKA WYJŚCIA Z GRY (Musi być na samym końcu Stack.children, żeby być na wierzchu!)
                 Positioned(

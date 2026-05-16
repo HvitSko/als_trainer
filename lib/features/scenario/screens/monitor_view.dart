@@ -11,248 +11,611 @@ class MonitorView extends StatefulWidget {
   State<MonitorView> createState() => _MonitorViewState();
 }
 
-class _MonitorViewState extends State<MonitorView> {
-  double _selectedEnergy = 150; // Zgodnie z wytycznymi ERC - start od 150J
+class _MonitorViewState extends State<MonitorView>
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  late AnimationController _ticker;
+  double _time = 0;
+  double _selectedEnergy = 150;
+  double _accumulatedRotation = 0;
   bool _isSynced = false;
+
+  bool _isMeasuringNibp = false;
+  String _nibpValue = "---/---";
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat();
+    _ticker.addListener(() => setState(() => _time += 0.035));
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  void _measureNibp() async {
+    if (_isMeasuringNibp || !widget.engine.state.isMonitorOn) return;
+    setState(() {
+      _isMeasuringNibp = true;
+      _nibpValue = "Pomiar...";
+    });
+    await Future.delayed(const Duration(seconds: 5));
+    if (!mounted) return;
+    setState(() {
+      _isMeasuringNibp = false;
+      if (widget.engine.state.patient.hasPulse) {
+        _nibpValue = "120/80";
+      } else {
+        _nibpValue = "---/---";
+      }
+    });
+  }
+
+  void _showEnergySelector() {
+    if (!widget.engine.state.isMonitorOn) return;
+    _accumulatedRotation = 0;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF222222),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Colors.grey),
+              ),
+              title: const Text(
+                "WYBÓR ENERGII",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onPanUpdate: (details) {
+                        double radius = 40.0;
+                        double x = details.localPosition.dx - radius;
+                        double y = details.localPosition.dy - radius;
+
+                        double dx = details.delta.dx;
+                        double dy = details.delta.dy;
+
+                        double rotationChange = x * dy - y * dx;
+
+                        setDialogState(() {
+                          _accumulatedRotation += rotationChange * 0.08;
+
+                          if (_accumulatedRotation.abs() >= 1.0) {
+                            int steps = _accumulatedRotation.truncate();
+                            _selectedEnergy = (_selectedEnergy + steps * 10)
+                                .clamp(10, 360);
+                            _accumulatedRotation -= steps;
+                          }
+                        });
+                        setState(() {});
+                      },
+                      child: Transform.rotate(
+                        angle: _selectedEnergy * 0.02,
+                        child: Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const RadialGradient(
+                              colors: [Color(0xFF555555), Color(0xFF111111)],
+                            ),
+                            border: Border.all(color: Colors.black, width: 4),
+                          ),
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: Container(
+                              width: 5,
+                              height: 16,
+                              color: Colors.yellowAccent,
+                              margin: const EdgeInsets.only(top: 4),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    Text(
+                      "${_selectedEnergy.toInt()} J",
+                      style: const TextStyle(
+                        color: Colors.yellowAccent,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                    const Text(
+                      "Wykonaj okrężny ruch palcem wokół pokrętła",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white54, fontSize: 10),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[800],
+                  ),
+                  onPressed: () {
+                    widget.engine.setEnergy(_selectedEnergy.toInt());
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text(
+                    "ZATWIERDŹ",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showGainSelector() {
+    if (!widget.engine.state.isMonitorOn) return;
+    final List<double> availableGains = [0.25, 0.5, 1.0, 2.0, 4.0];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF222222),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: Colors.blueAccent),
+          ),
+          title: const Text(
+            "CECHA ZAPISU (GAIN)",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SizedBox(
+            width: 200,
+            height: 220,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: availableGains.length,
+              itemBuilder: (context, index) {
+                double gain = availableGains[index];
+                bool isCurrent = widget.engine.state.ecgGain == gain;
+                return ListTile(
+                  title: Text(
+                    "Cech x$gain ${gain == 1.0 ? '(Norma)' : ''}",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: isCurrent ? Colors.blueAccent : Colors.white,
+                      fontWeight: isCurrent
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  trailing: isCurrent
+                      ? const Icon(Icons.check_circle, color: Colors.blueAccent)
+                      : null,
+                  onTap: () {
+                    widget.engine.setEcgGain(gain);
+                    Navigator.of(context).pop();
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     return AnimatedBuilder(
       animation: widget.engine,
       builder: (context, _) {
         final state = widget.engine.state;
+        bool isMonitorOn = state.isMonitorOn;
 
         return Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: const Color(0xFF151515),
           body: SafeArea(
             child: Row(
               children: [
                 // =========================================================
-                // 1. EKRAN MONITORA (LEWA STRONA - GŁÓWNA)
+                // 1. LEWA KOLUMNA (Mniej używane przyciski)
                 // =========================================================
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[900]!, width: 4),
-                      color: const Color(0xFF0A0A0A),
-                    ),
+                Container(
+                  width: 80,
+                  color: const Color(0xFF1E1E1E),
+                  child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        // --- GÓRNY PASEK STANU LIFEPAKA ---
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          color: Colors.grey[850],
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                state.currentPhase ==
-                                        ResuscitationPhase.assessmentABCDE
-                                    ? 'BRAK SYGNAŁU'
-                                    : 'MONITORING AKTYWNY',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                "CZAS: ${(state.totalElapsedGameTime ~/ 60).toString().padLeft(2, '0')}:${(state.totalElapsedGameTime % 60).toString().padLeft(2, '0')}",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
+                        const SizedBox(height: 10),
+                        _buildSideButton(
+                          Icons.monitor_heart,
+                          "12-ODPR\nEKG",
+                          Colors.green[900]!,
+                          () {},
                         ),
-
-                        // --- FALA EKG (ZIELONA - SWEEP PAINTER) ---
-                        Expanded(
-                          flex: 3,
-                          child: Stack(
-                            children: [
-                              Positioned.fill(
-                                child: CustomPaint(painter: GridPainter()),
-                              ),
-                              Positioned.fill(
-                                // OPTYMALIZACJA: RepaintBoundary izoluje renderowanie fali!
-                                child: RepaintBoundary(
-                                  child: SweepWaveDisplay(
-                                    waveType: WaveType.ecg,
-                                    rhythm: state.monitorRhythm,
-                                    isCprActive: state.isCprActive,
-                                    color: Colors.greenAccent,
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                top: 10,
-                                left: 10,
-                                child: Text(
-                                  state.isCprActive
-                                      ? "RKO ARTEFAKTY"
-                                      : "II x1.0",
-                                  style: TextStyle(
-                                    color: state.isCprActive
-                                        ? Colors.orange
-                                        : Colors.greenAccent,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        _buildSideButton(
+                          Icons.wifi,
+                          "TRANSMITUJ",
+                          Colors.grey[800]!,
+                          () {},
                         ),
-
-                        // --- FALA ETCO2 (ŻÓŁTA - SWEEP PAINTER) ---
-                        Expanded(
-                          flex: 1,
-                          child: Stack(
-                            children: [
-                              Positioned.fill(
-                                child: RepaintBoundary(
-                                  child: SweepWaveDisplay(
-                                    waveType: WaveType.etco2,
-                                    isEtco2Attached:
-                                        state.isCapnographyAttached,
-                                    isVentilated:
-                                        state.airwayStatus != AirwayType.none,
-                                    color: Colors.yellowAccent,
-                                  ),
-                                ),
-                              ),
-                              const Positioned(
-                                top: 5,
-                                left: 10,
-                                child: Text(
-                                  "EtCO2",
-                                  style: TextStyle(
-                                    color: Colors.yellowAccent,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        _buildSideButton(
+                          Icons.save,
+                          "ZAPIS\nZDARZEŃ",
+                          Colors.grey[800]!,
+                          () {},
                         ),
-
-                        // --- PASEK PARAMETRÓW CYFROWYCH ---
-                        _buildNumericPanel(state),
+                        _buildSideButton(
+                          Icons.print,
+                          "DRUKUJ",
+                          Colors.grey[800]!,
+                          () {},
+                        ),
+                        _buildSideButton(
+                          Icons.settings,
+                          "OPCJE",
+                          Colors.grey[800]!,
+                          () {},
+                        ),
                       ],
                     ),
                   ),
                 ),
 
                 // =========================================================
-                // 2. PANEL STEROWANIA LIFEPAK (PRAWA STRONA - RESPONSYWNA)
+                // 2. GŁÓWNY EKRAN MONITORA
                 // =========================================================
-                Container(
-                  width: 140, // Zwężony, idealny na telefony
-                  color: const Color(0xFF222222),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: state.isCprActive
-                                ? Colors.orange[900]
-                                : Colors.green[700],
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
+                Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: isMonitorOn
+                          ? const Color(0xFF050505)
+                          : Colors.black,
+                      border: Border.all(color: Colors.grey[850]!, width: 6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: !isMonitorOn
+                        ? const Center(
+                            child: Text(
+                              "LIFEPAK 15",
+                              style: TextStyle(
+                                color: Colors.white12,
+                                fontSize: 30,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          icon: Icon(
-                            state.isCprActive
-                                ? Icons.stop_circle
-                                : Icons.favorite,
-                          ),
-                          label: Text(
-                            state.isCprActive
-                                ? "STOP RKO\n(Oceń rytm)"
-                                : "START\nRKO",
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          onPressed: () {
-                            if (state.currentPhase ==
-                                ResuscitationPhase.assessmentABCDE) {
-                              widget.engine.connectMonitor();
-                            }
-                            if (state.isCprActive) {
-                              widget.engine.stopCprAndAssess();
-                            } else {
-                              widget.engine.startCpr();
-                            }
-                          },
-                        ),
-                      ),
-                      const Divider(color: Colors.black, thickness: 2),
-
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 8,
-                          ),
-                          child: Column(
+                          )
+                        : Row(
                             children: [
-                              _buildRotaryDial(),
-                              const SizedBox(height: 15),
-                              _buildLifepakButton(
-                                "1 ENERGY",
-                                Colors.grey[800]!,
-                                () => widget.engine.setEnergy(
-                                  _selectedEnergy.toInt(),
+                              Container(
+                                width: 100,
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    right: BorderSide(
+                                      color: Colors.white24,
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _buildNumericValue(
+                                      "HR",
+                                      _getHrValue(state),
+                                      Colors.greenAccent,
+                                    ),
+                                    _buildNumericValue(
+                                      "SpO2",
+                                      _getSpo2Value(state),
+                                      Colors.cyanAccent,
+                                    ),
+                                    _buildNumericValue(
+                                      "EtCO2",
+                                      state.isCapnographyAttached
+                                          ? "${state.patient.etCo2}"
+                                          : "---",
+                                      Colors.yellowAccent,
+                                    ),
+                                    _buildNumericValue(
+                                      "NIBP",
+                                      _nibpValue,
+                                      Colors.white,
+                                      isSmall: true,
+                                    ),
+                                    _buildNumericValue(
+                                      "TEMP",
+                                      "---",
+                                      Colors.grey,
+                                      isSmall: true,
+                                    ), // Poprawione!
+                                  ],
                                 ),
                               ),
-                              _buildLifepakButton(
-                                "2 CHARGE",
-                                state.isDefibCharging
-                                    ? Colors.yellow[900]!
-                                    : Colors.yellow[700]!,
-                                () {
-                                  widget.engine.setEnergy(
-                                    _selectedEnergy.toInt(),
-                                  );
-                                  widget.engine.chargeDefibrillator();
-                                },
-                              ),
-                              _buildLifepakButton(
-                                "3 SHOCK",
-                                state.isDefibCharged
-                                    ? Colors.red[600]!
-                                    : Colors.red[900]!,
-                                () => widget.engine.deliverShock(),
-                              ),
-                              const SizedBox(height: 20),
-                              _buildLifepakButton(
-                                "SYNC",
-                                _isSynced ? Colors.orange : Colors.grey[800]!,
-                                () => setState(() => _isSynced = !_isSynced),
-                              ),
-                              _buildLifepakButton(
-                                "NIBP",
-                                Colors.blueGrey[800]!,
-                                () {},
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    Expanded(
+                                      flex: 3,
+                                      child: Stack(
+                                        children: [
+                                          Positioned.fill(
+                                            child: CustomPaint(
+                                              painter: GridPainter(),
+                                            ),
+                                          ),
+                                          Positioned.fill(
+                                            child: RepaintBoundary(
+                                              child: SweepWaveDisplay(
+                                                waveType: WaveType.ecg,
+                                                rhythm: state.monitorRhythm,
+                                                isCprActive: state.isCprActive,
+                                                ecgGain: state.ecgGain,
+                                                color: Colors.greenAccent,
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 5,
+                                            left: 10,
+                                            child: Text(
+                                              state.isCprActive
+                                                  ? "RKO ARTEFAKTY"
+                                                  : "II x${state.ecgGain.toStringAsFixed(2)}",
+                                              style: TextStyle(
+                                                color: state.isCprActive
+                                                    ? Colors.orange
+                                                    : Colors.greenAccent,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Stack(
+                                        children: [
+                                          Positioned.fill(
+                                            child: RepaintBoundary(
+                                              child: SweepWaveDisplay(
+                                                waveType: WaveType.spo2,
+                                                hasPulse:
+                                                    state.patient.hasPulse,
+                                                isAttached:
+                                                    state.isSpO2Attached,
+                                                ecgGain: 1.0,
+                                                color: Colors.cyanAccent,
+                                              ),
+                                            ),
+                                          ),
+                                          const Positioned(
+                                            top: 5,
+                                            left: 10,
+                                            child: Text(
+                                              "SpO2",
+                                              style: TextStyle(
+                                                color: Colors.cyanAccent,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Stack(
+                                        children: [
+                                          Positioned.fill(
+                                            child: RepaintBoundary(
+                                              child: SweepWaveDisplay(
+                                                waveType: WaveType.etco2,
+                                                isAttached:
+                                                    state.isCapnographyAttached,
+                                                isVentilated:
+                                                    state.airwayStatus !=
+                                                    AirwayType.none,
+                                                ecgGain: 1.0,
+                                                color: Colors.yellowAccent,
+                                              ),
+                                            ),
+                                          ),
+                                          const Positioned(
+                                            top: 5,
+                                            left: 10,
+                                            child: Text(
+                                              "EtCO2",
+                                              style: TextStyle(
+                                                color: Colors.yellowAccent,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
+                  ),
+                ),
+
+                // =========================================================
+                // 3. PRAWA KOLUMNA (Główne Sterowanie)
+                // =========================================================
+                Container(
+                  width: 110,
+                  color: const Color(0xFF1E1E1E),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        // WŁĄCZNIK
+                        _buildSideButton(
+                          Icons.power_settings_new,
+                          "WŁĄCZ",
+                          isMonitorOn ? Colors.green[800]! : Colors.grey[800]!,
+                          () => widget.engine.toggleMonitor(),
                         ),
-                      ),
-                    ],
+                        const Divider(color: Colors.black, thickness: 2),
+
+                        // RKO
+                        _buildSideButton(
+                          state.isCprActive
+                              ? Icons.stop_circle
+                              : Icons.favorite,
+                          state.isCprActive ? "STOP\nRKO" : "START\nRKO",
+                          state.isCprActive
+                              ? Colors.orange[900]!
+                              : Colors.green[700]!,
+                          () {
+                            if (state.isCprActive)
+                              widget.engine.stopCprAndAssess();
+                            else
+                              widget.engine.startCpr();
+                          },
+                        ),
+
+                        // ENERGIA
+                        _buildSideButton(
+                          Icons.dialpad,
+                          "1 ENERGIA\n${_selectedEnergy.toInt()}J",
+                          Colors.grey[800]!,
+                          _showEnergySelector,
+                        ),
+
+                        // ŁADUJ
+                        _buildSideButton(
+                          Icons.battery_charging_full,
+                          "2 ŁADUJ",
+                          state.isDefibCharging
+                              ? Colors.yellow[900]!
+                              : Colors.yellow[700]!,
+                          () {
+                            if (isMonitorOn)
+                              widget.engine.chargeDefibrillator();
+                          },
+                          textColor: Colors.black,
+                        ),
+
+                        // DEFIBRYLACJA
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: InkWell(
+                            onTap: () {
+                              if (isMonitorOn && state.isDefibCharged)
+                                widget.engine.deliverShock();
+                            },
+                            child: Container(
+                              width: 70,
+                              height: 70,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: state.isDefibCharged
+                                    ? Colors.redAccent
+                                    : Colors.red[900],
+                                border: Border.all(
+                                  color: Colors.black,
+                                  width: 3,
+                                ),
+                                boxShadow: state.isDefibCharged
+                                    ? [
+                                        const BoxShadow(
+                                          color: Colors.red,
+                                          blurRadius: 15,
+                                        ),
+                                      ]
+                                    : [],
+                              ),
+                              child: const Icon(
+                                Icons.bolt,
+                                color: Colors.white,
+                                size: 40,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          "3 DEFIBRYLACJA",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Divider(color: Colors.black, thickness: 2),
+
+                        // ZAAWANSOWANE FUNKCJE
+                        _buildSideButton(
+                          Icons.waves,
+                          "CECHA\nx${state.ecgGain}",
+                          state.isAsystoleConfirmed
+                              ? Colors.blue[800]!
+                              : Colors.blueGrey[800]!,
+                          _showGainSelector,
+                        ),
+                        _buildSideButton(
+                          Icons.sync,
+                          "SYNC",
+                          _isSynced ? Colors.orange : Colors.grey[800]!,
+                          () {
+                            if (isMonitorOn)
+                              setState(() => _isSynced = !_isSynced);
+                          },
+                        ),
+                        _buildSideButton(
+                          Icons.compress,
+                          "NIBP\nSTART",
+                          Colors.blueGrey[700]!,
+                          _measureNibp,
+                        ),
+                        _buildSideButton(
+                          Icons.bolt_outlined,
+                          "STYMULATOR",
+                          Colors.grey[800]!,
+                          () => widget.engine.togglePacer(),
+                        ),
+
+                        const SizedBox(height: 10),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -263,58 +626,43 @@ class _MonitorViewState extends State<MonitorView> {
     );
   }
 
-  Widget _buildNumericPanel(AlsScenarioState state) {
-    String hr = "0";
-    if (state.isCprActive) {
-      hr = "115";
-    } else {
-      if (state.monitorRhythm == PatientRhythm.pvt)
-        hr = "214";
-      else if (state.monitorRhythm == PatientRhythm.vf)
-        hr = "---";
-      else if (state.monitorRhythm == PatientRhythm.asystole)
-        hr = "0";
-      else
-        hr = "72";
-    }
-
-    String spo2Value = "---";
-    if (state.isSpO2Attached) {
-      spo2Value = state.patient.hasPulse
-          ? "${state.patient.spO2 ?? 98}"
-          : "---";
-    }
-
-    return Container(
-      height: 90,
-      color: Colors.black,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildValue("HR", hr, Colors.greenAccent),
-          _buildValue("SpO2", spo2Value, Colors.cyanAccent),
-          _buildValue(
-            "EtCO2",
-            state.isCapnographyAttached ? "${state.patient.etCo2}" : "--",
-            Colors.yellowAccent,
-          ),
-          _buildValue("NIBP", "---/---", Colors.white),
-        ],
-      ),
-    );
+  String _getHrValue(AlsScenarioState state) {
+    if (state.isCprActive) return "115";
+    if (state.monitorRhythm == PatientRhythm.pvt) return "214";
+    if (state.monitorRhythm == PatientRhythm.vf) return "---";
+    if (state.monitorRhythm == PatientRhythm.asystole) return "0";
+    return "72";
   }
 
-  Widget _buildValue(String label, String val, Color color) {
+  String _getSpo2Value(AlsScenarioState state) {
+    if (!state.isSpO2Attached) return "---"; // Poprawione na duże O
+    return state.patient.hasPulse
+        ? "${state.patient.spO2 ?? 98}"
+        : "---"; // Poprawione na duże O
+  }
+
+  Widget _buildNumericValue(
+    String label,
+    String val,
+    Color color, {
+    bool isSmall = false,
+  }) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(label, style: TextStyle(color: color, fontSize: 10)),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         Text(
           val,
           style: TextStyle(
             color: color,
-            fontSize: 28,
+            fontSize: isSmall ? 20 : 32,
             fontWeight: FontWeight.bold,
             fontFamily: 'monospace',
           ),
@@ -323,83 +671,38 @@ class _MonitorViewState extends State<MonitorView> {
     );
   }
 
-  Widget _buildRotaryDial() {
-    return Column(
-      children: [
-        const Text(
-          "ENERGY SELECT",
-          style: TextStyle(
-            color: Colors.white54,
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onVerticalDragUpdate: (details) {
-            setState(() {
-              _selectedEnergy = (_selectedEnergy - details.delta.dy).clamp(
-                2,
-                360,
-              );
-            });
-          },
-          child: Transform.rotate(
-            angle: _selectedEnergy * 0.05,
-            child: Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const RadialGradient(
-                  colors: [Color(0xFF444444), Color(0xFF111111)],
-                ),
-                border: Border.all(color: Colors.black, width: 3),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black54, blurRadius: 8),
-                ],
-              ),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Container(
-                  width: 4,
-                  height: 15,
-                  color: Colors.yellowAccent,
-                  margin: const EdgeInsets.only(top: 5),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          "${_selectedEnergy.toInt()} J",
-          style: const TextStyle(
-            color: Colors.yellowAccent,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLifepakButton(String label, Color color, VoidCallback action) {
+  Widget _buildSideButton(
+    IconData icon,
+    String label,
+    Color bgColor,
+    VoidCallback onTap, {
+    Color textColor = Colors.white,
+  }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 45),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-          elevation: 6,
+          backgroundColor: bgColor,
+          foregroundColor: textColor,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          minimumSize: const Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+            side: const BorderSide(color: Colors.black54),
+          ),
+          elevation: 4,
         ),
-        onPressed: action,
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+        onPressed: onTap,
+        child: Column(
+          children: [
+            Icon(icon, size: 20),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
       ),
     );
@@ -407,17 +710,19 @@ class _MonitorViewState extends State<MonitorView> {
 }
 
 // =========================================================
-// 🎨 ARCHITEKTURA SWEEP PAINTER (BUFOR DANYCH + TICKER)
+// 🎨 ARCHITEKTURA SWEEP PAINTER
 // =========================================================
 
-enum WaveType { ecg, etco2 }
+enum WaveType { ecg, spo2, etco2 }
 
 class SweepWaveDisplay extends StatefulWidget {
   final WaveType waveType;
   final PatientRhythm? rhythm;
   final bool? isCprActive;
-  final bool? isEtco2Attached;
+  final bool? isAttached;
+  final bool? hasPulse;
   final bool? isVentilated;
+  final double ecgGain;
   final Color color;
 
   const SweepWaveDisplay({
@@ -425,8 +730,10 @@ class SweepWaveDisplay extends StatefulWidget {
     required this.waveType,
     this.rhythm,
     this.isCprActive,
-    this.isEtco2Attached,
+    this.isAttached,
+    this.hasPulse,
     this.isVentilated,
+    required this.ecgGain,
     required this.color,
   });
 
@@ -437,11 +744,8 @@ class SweepWaveDisplay extends StatefulWidget {
 class _SweepWaveDisplayState extends State<SweepWaveDisplay>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-
-  // EBM: Wielkość bufora określa rozdzielczość matrycy EKG
-  static const int maxPoints = 350;
+  static const int maxPoints = 300;
   final List<double> _dataPoints = List.filled(maxPoints, 0.0);
-
   int _currentIndex = 0;
   double _internalTime = 0.0;
   final math.Random _random = math.Random();
@@ -449,7 +753,6 @@ class _SweepWaveDisplayState extends State<SweepWaveDisplay>
   @override
   void initState() {
     super.initState();
-    // Ticker działający na poziomie 60FPS dla płynności
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -465,55 +768,63 @@ class _SweepWaveDisplayState extends State<SweepWaveDisplay>
 
   void _generateNextPoint() {
     if (!mounted) return;
-
     double y = 0;
-    _internalTime += 0.035; // Skalibrowany przelicznik czasu (ok. 25 mm/s)
+    _internalTime += 0.035;
 
     if (widget.waveType == WaveType.ecg) {
       if (widget.isCprActive == true) {
-        // ARTEFAKTY RKO: Potężne wahania linii od kompresji (ok 110/min) + szum wstrząsowy
         y =
-            math.sin(_internalTime * 10.5) * 35 +
+            math.sin(_internalTime * 5.7) * 35 +
             math.sin(_internalTime * 50) * 4;
       } else if (widget.rhythm == PatientRhythm.unknown) {
         y = 0.0;
       } else if (widget.rhythm == PatientRhythm.vf) {
-        // VF: Hiper-realistyczny kliniczny chaos. Suma 3 fal sinusoidalnych + losowy szum wędrujący
         y =
-            math.sin(_internalTime * 4.5) * 12 +
-            math.cos(_internalTime * 5.5) * 16 +
-            math.sin(_internalTime * 7.2) * 8 +
-            (_random.nextDouble() - 0.5) * 8; // Random noise!
+            (math.sin(_internalTime * 4.5) * 12 +
+                math.cos(_internalTime * 5.5) * 16 +
+                math.sin(_internalTime * 7.2) * 8 +
+                (_random.nextDouble() - 0.5) * 8) *
+            widget.ecgGain;
       } else if (widget.rhythm == PatientRhythm.pvt) {
-        // pVT: Szybki (rate ~200), uporządkowany ząb piły
-        y = (math.sin(_internalTime * 11).abs() * -45) + 20;
+        y = ((math.sin(_internalTime * 11).abs() * -45) + 20) * widget.ecgGain;
       } else if (widget.rhythm == PatientRhythm.asystole) {
-        // ASYSTOLIA: To nigdy nie jest płaska linia. Pływająca izoelektryczna (wandering baseline) + szum
         y =
-            math.sin(_internalTime * 2) * 2 +
-            math.sin(_internalTime * 0.5) * 1.5 +
-            (_random.nextDouble() - 0.5) * 3;
+            (math.sin(_internalTime * 2) * 1.5 +
+                (_random.nextDouble() - 0.5) * 2) *
+            widget.ecgGain;
       } else {
-        // ZATOKA / PEA: P-QRS-T
         double phase = (_internalTime * 2.5) % 6.0;
-        if (phase > 0.5 && phase < 0.9) {
-          y = -6 * math.sin((phase - 0.5) * math.pi / 0.4); // P
-        } else if (phase > 1.2 && phase < 1.5) {
+        double baseLine = 0;
+        if (phase > 0.5 && phase < 0.9)
+          baseLine = -6 * math.sin((phase - 0.5) * math.pi / 0.4);
+        else if (phase > 1.2 && phase < 1.5) {
           double qrsPhase = phase - 1.2;
           if (qrsPhase < 0.1)
-            y = 5; // Q
+            baseLine = 5;
           else if (qrsPhase < 0.2)
-            y = -45; // R
+            baseLine = -45;
           else
-            y = 15; // S
-        } else if (phase > 1.8 && phase < 2.6) {
-          y = -10 * math.sin((phase - 1.8) * math.pi / 0.8); // T
+            baseLine = 15;
+        } else if (phase > 1.8 && phase < 2.6)
+          baseLine = -10 * math.sin((phase - 1.8) * math.pi / 0.8);
+        y = baseLine * widget.ecgGain;
+      }
+    } else if (widget.waveType == WaveType.spo2) {
+      if (widget.isAttached == true) {
+        if (widget.hasPulse == true) {
+          double phase = (_internalTime * 2.5) % 6.0;
+          if (phase < 2.0)
+            y = -20 * math.sin(phase * math.pi / 2.0);
+          else if (phase > 2.5 && phase < 4.0)
+            y = -8 * math.sin((phase - 2.5) * math.pi / 1.5);
+        } else {
+          y = (_random.nextDouble() - 0.5) * 2;
         }
       }
     } else if (widget.waveType == WaveType.etco2) {
-      if (widget.isEtco2Attached == true && widget.isVentilated == true) {
+      if (widget.isAttached == true && widget.isVentilated == true) {
         double phase = (_internalTime * 1.5) % 6;
-        if (phase < 2.5) y = -25; // Kwadratowa fala wydechu
+        if (phase < 2.5) y = -25;
       }
     }
 
@@ -535,16 +846,10 @@ class _SweepWaveDisplayState extends State<SweepWaveDisplay>
   }
 }
 
-// =========================================================
-// 🎨 ENGINE RYSOWANIA (ERASER BAR)
-// =========================================================
-
 class SweepPainter extends CustomPainter {
   final List<double> dataPoints;
   final int currentIndex;
   final Color color;
-
-  // EBM: Wielkość gumki zmazującej stare EKG przed narysowaniem nowego (~5% ekranu)
   static const int eraserGap = 15;
 
   SweepPainter({
@@ -560,18 +865,13 @@ class SweepPainter extends CustomPainter {
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeJoin = StrokeJoin.round;
-
     final path = Path();
     final double widthPerPoint = size.width / dataPoints.length;
-    final double midY =
-        size.height /
-        (color == Colors.yellowAccent ? 1.2 : 2); // EtCO2 rysujemy niżej
+    final double midY = size.height / 1.5;
 
     bool isFirstPoint = true;
 
     for (int i = 0; i < dataPoints.length; i++) {
-      // LOGIKA WYMAZYWACZA (Eraser Gap):
-      // Nie rysujemy linii w małym odstępie "przed" obecnym indeksem, aby oddzielić stare dane od nowych.
       bool inEraser = false;
       if (currentIndex + eraserGap < dataPoints.length) {
         if (i >= currentIndex && i < currentIndex + eraserGap) inEraser = true;
@@ -582,7 +882,7 @@ class SweepPainter extends CustomPainter {
       }
 
       if (inEraser) {
-        isFirstPoint = true; // Łamiemy ścieżkę, przerywamy linię
+        isFirstPoint = true;
         continue;
       }
 
@@ -596,10 +896,8 @@ class SweepPainter extends CustomPainter {
         path.lineTo(x, y);
       }
     }
-
     canvas.drawPath(path, paint);
 
-    // Opcjonalny bajer: mała "głowica" świecąca na czubku fali EKG (daje feeling CRT)
     final headPaint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
@@ -611,11 +909,7 @@ class SweepPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(SweepPainter old) {
-    // Ponieważ przekazujemy referencję do listy, a nie jej kopię,
-    // indeks służy nam jako główny wyzwalacz odrysowania
-    return old.currentIndex != currentIndex;
-  }
+  bool shouldRepaint(SweepPainter old) => old.currentIndex != currentIndex;
 }
 
 class GridPainter extends CustomPainter {
@@ -624,12 +918,10 @@ class GridPainter extends CustomPainter {
     final paint = Paint()
       ..color = Colors.green[900]!.withOpacity(0.3)
       ..strokeWidth = 0.5;
-    for (double i = 0; i < size.width; i += 15) {
+    for (double i = 0; i < size.width; i += 15)
       canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double i = 0; i < size.height; i += 15) {
+    for (double i = 0; i < size.height; i += 15)
       canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
   }
 
   @override

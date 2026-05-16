@@ -20,6 +20,10 @@ class AlsScenarioState {
   late PatientModel patient;
 
   GameMode mode = GameMode.practice; // Domyślnie tryb z podpowiedziami
+  bool isMonitorOn = false; // Pamięta stan zasilania Lifepaka
+  bool isAsystoleConfirmed =
+      false; // Pamięta, czy gracz kliknął "CECHA" w asystolii
+  double ecgGain = 1.0; // NOWOŚĆ: Mnożnik cechy zapisu EKG (domyślnie x1.0)
 
   ResuscitationPhase currentPhase = ResuscitationPhase.assessmentABCDE;
   PatientRhythm monitorRhythm = PatientRhythm.unknown;
@@ -39,6 +43,7 @@ class AlsScenarioState {
   int selectedEnergy = 150;
   int chargedEnergy = 0;
   int lastShockEnergy = 0;
+  bool isSpo2Attached = false;
 
   List<String> preparedDrugs = [];
   bool isPreparingDrug = false;

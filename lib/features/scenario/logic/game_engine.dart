@@ -130,6 +130,39 @@ class GameEngine extends ChangeNotifier {
     notifyListeners();
   }
 
+  void toggleMonitor() {
+    state.isMonitorOn = !state.isMonitorOn;
+    if (state.isMonitorOn &&
+        state.currentPhase == ResuscitationPhase.assessmentABCDE) {
+      connectMonitor(); // Auto-podłączenie przy pierwszym uruchomieniu
+    } else if (!state.isMonitorOn) {
+      _logEvent("INFO: Kardiomonitor został wyłączony.");
+    }
+    notifyListeners();
+  }
+
+  void setEcgGain(double gain) {
+    if (!state.isMonitorOn) return;
+    state.ecgGain = gain;
+
+    // Wytyczne EBM: Jeśli jest asystolia, gracz MUSI zwiększyć cechę (min. x2.0 / x4.0), aby ją potwierdzić!
+    if (state.monitorRhythm == PatientRhythm.asystole && gain >= 2.0) {
+      state.isAsystoleConfirmed = true;
+      _logEvent(
+        "SUKCES EBM: Zwiększono cechę zapisu do x$gain. Wykluczono niskonapięciowe migotanie komór (fine VF).",
+      );
+    } else {
+      _logEvent("INFO: Zmieniono cechę wzmocnienia EKG na x$gain.");
+    }
+    notifyListeners();
+  }
+
+  void togglePacer() {
+    if (!state.isMonitorOn) return;
+    _logEvent("INFO: Włączono tryb stymulatora zewnętrznego (PACER).");
+    notifyListeners();
+  }
+
   void stopCprAndAssess() async {
     if (!state.isCprActive) return;
     state.isCprActive = false;
