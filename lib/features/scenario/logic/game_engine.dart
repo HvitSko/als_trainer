@@ -81,13 +81,20 @@ class GameEngine extends ChangeNotifier {
         } else if (state.airwayStatus != AirwayType.none &&
             state.airwayStatus != AirwayType.basic) {
           if (state.isCprActive) {
-            // ZMIANA: Jeśli tlen < 15, jakość wentylacji jest dramatyczna, co sztucznie zaniża parametry w naszej symulacji
-            if (state.oxygenFlow < 15) {
+            // GLOBALNA REGUŁA: Zator, Odma, Tamponada drastycznie obniżają EtCO2 przez blokadę rzutu (wstrząs obturacyjny)!
+            if (state.patient.hiddenCause ==
+                    ReversibleCause.tensionPneumothorax ||
+                state.patient.hiddenCause == ReversibleCause.thrombosis ||
+                state.patient.hiddenCause == ReversibleCause.tamponade) {
               state.patient.etCo2 =
-                  5 + Random().nextInt(6); // 5-10 mmHg (Bardzo źle)
+                  4 +
+                  Random().nextInt(
+                    6,
+                  ); // Niskie wartości pomimo dobrego RKO (4-9 mmHg)
+            } else if (state.oxygenFlow < 15) {
+              state.patient.etCo2 = 5 + Random().nextInt(6);
             } else {
-              state.patient.etCo2 =
-                  12 + Random().nextInt(11); // 12-22 mmHg (Prawidłowo przy RKO)
+              state.patient.etCo2 = 12 + Random().nextInt(11); // Norma przy RKO
             }
           } else {
             state.patient.etCo2 = state.patient.etCo2 > 2
@@ -212,12 +219,12 @@ class GameEngine extends ChangeNotifier {
       if (state.patient.hiddenCause == ReversibleCause.none ||
           state.patient.hiddenCause == ReversibleCause.thrombosis) {
         state.instructorFeedback.add(
-          "SUKCES: Prowadziłeś interwencję zgodnie z wytycznymi ALS. Poprawnie przeanalizowałeś i wykluczyłeś/zabezpieczyłeś odwracalne przyczyny zatrzymania krążenia (4H4T), co doprowadziło do powrotu krążenia (ROSC).",
+          "SUKCES: Prowadziłeś interwencję zgodnie z wytycznymi ALS. Poprawnie przeanalizowałeś i wykluczyłeś/zabezpieczyłeś odwracalne przyczyny zatrzymania krążenia (4H4T)",
         );
       } else {
         // Dla innych przyczyn (np. Hipoksja, Hipotermia), które realnie ZABEZPIECZAMY
         state.instructorFeedback.add(
-          "SUKCES: Poprawnie zdiagnozowałeś i zabezpieczyłeś główną przyczynę ($causeKey), co doprowadziło do powrotu krążenia (ROSC).",
+          "SUKCES: Poprawnie zdiagnozowałeś główną przyczynę ($causeKey)",
         );
       }
 
@@ -772,14 +779,33 @@ class GameEngine extends ChangeNotifier {
 
     state.isPhysicalExamDone = true;
     _logEvent(
-      "AKCJA: Wykonano szybkie badanie urazowe i ocenę neurologiczną (Exposure / ABCDE).",
+      "AKCJA: Rozcięto ubrania. Wykonano badanie urazowe (Exposure / ABCDE).",
     );
 
-    // ZMIANA: Silnik zaczytuje parametry prosto z wygenerowanego modelu pacjenta!
-    _logEvent(
-      "DIAGNOZA (Fizykalne): Skóra: ${state.patient.skinCondition}. Klatka: ${state.patient.chestMovement}. Źrenice: ${state.patient.pupils}.",
-    );
+    // Dynamiczne zbieranie objawów ze wszystkich stref zależnie od przyczyny NZK!
+    List<String> findings = [];
+    findings.add("Skóra: ${state.patient.skinCondition}");
+    findings.add("Źrenice: ${state.patient.pupils}");
 
+    if (state.patient.hiddenCause == ReversibleCause.tamponade)
+      findings.add("Klatka: Masywny ślad po uderzeniu na mostku");
+    if (state.patient.hiddenCause == ReversibleCause.tensionPneumothorax ||
+        state.patient.hiddenCause == ReversibleCause.tamponade)
+      findings.add("Szyja: Przepełnione żyły szyjne");
+    if (state.patient.hiddenCause == ReversibleCause.toxins)
+      findings.add("Ręce: Ślady po wkłuciach dożylnych");
+    if (state.patient.hiddenCause == ReversibleCause.hypoHyperkalemia)
+      findings.add(
+        "Ręce: Czynna przetoka dializacyjna | Nogi: Obrzęki ciastowate",
+      );
+    if (state.patient.hiddenCause == ReversibleCause.thrombosis)
+      findings.add("Nogi: Asymetryczny obrzęk jednej łydki (DVT)");
+    if (state.patient.hiddenCause == ReversibleCause.hypovolemia)
+      findings.add("Brzuch: Napięty, wzdęty (wodobrzusze)");
+    if (state.patient.hiddenCause == ReversibleCause.hypoxia)
+      findings.add("Głowa: Ciało obce / Piana w jamie ustnej");
+
+    _logEvent("DIAGNOZA (Fizykalne Całościowe): ${findings.join(' | ')}");
     notifyListeners();
   }
 
@@ -834,17 +860,22 @@ class GameEngine extends ChangeNotifier {
       } else if (target.contains("Klatka") || target.contains("Bok")) {
         bool isLeft = target.contains("Lew"); // Wykrywa Lewą Klatkę / Lewy Bok
         String sounds = "Brak szmerów / Zbyt cicho";
-        if (state.airwayStatus == AirwayType.endotracheal) {
+
+        // GLOBALNA REGUŁA: Odma zawsze wycisza szmer po zajętej stronie (tu domyślnie lewej dla uproszczenia mechaniki)
+        if (state.patient.hiddenCause == ReversibleCause.tensionPneumothorax &&
+            isLeft) {
+          sounds = "CISZA! Zupełny brak szmeru pęcherzykowego!";
+        } else if (state.airwayStatus == AirwayType.endotracheal) {
           if (state.intubationStatus == IntubationStatus.esophageal)
             sounds = "Brak szmerów";
           else if (state.intubationStatus == IntubationStatus.rightMainstem &&
               isLeft)
-            sounds = "CISZA!";
+            sounds = "CISZA! (Rurka za głęboko)";
           else if (state.intubationStatus == IntubationStatus.rightMainstem &&
               !isLeft)
             sounds = "Czysty szmer pęcherzykowy";
           else
-            sounds = "szmer pęcherzykowy";
+            sounds = "Szmer pęcherzykowy symetryczny";
         } else if (state.airwayStatus == AirwayType.igel ||
             state.airwayStatus == AirwayType.bvm) {
           sounds = "Szmer pęcherzykowy (Wentylacja wymuszona)";
@@ -945,22 +976,40 @@ class GameEngine extends ChangeNotifier {
             state.airwayStatus == AirwayType.bvm ||
             state.airwayStatus == AirwayType.igel ||
             state.airwayStatus == AirwayType.endotracheal;
-        String chestMove = isVentilated
-            ? "Klatka unosi się symetrycznie (sztuczna wentylacja)."
-            : "BRAK własnych ruchów oddechowych.";
+        String chestMove = "BRAK własnych ruchów oddechowych.";
+        if (isVentilated) {
+          chestMove =
+              (state.patient.hiddenCause == ReversibleCause.tensionPneumothorax)
+              ? "Klatka unosi się ASYMETRYCZNIE (prawa strona mocniej)!"
+              : "Klatka unosi się symetrycznie (sztuczna wentylacja).";
+        }
+
+        // GLOBALNA REGUŁA: Zasinienie przy Tamponadzie (uraz tępy klatki)
+        String trauma = (state.patient.hiddenCause == ReversibleCause.tamponade)
+            ? "UWAGA: Masywne zasinienie i ślad po uderzeniu na mostku!"
+            : "Brak ran i krwotoków zewnętrznych.";
 
         _logEvent(
-          "BADANIE: Klatka piersiowa. $chestMove Szacowana waga: ~${state.patient.weight.toStringAsFixed(0)} kg. BRAK KRWOTOKÓW ZEWNĘTRZNYCH.",
+          "BADANIE: Klatka piersiowa. $chestMove $trauma Waga: ~${state.patient.weight.toStringAsFixed(0)} kg.",
         );
         notifyListeners();
-        return "$chestMove\nBrak ran, brak krwotoków.\nWaga: ~${state.patient.weight.toStringAsFixed(0)} kg";
+        return "$chestMove\n$trauma\nWaga: ~${state.patient.weight.toStringAsFixed(0)} kg";
       } else if (target.contains("brzusze")) {
-        state.isAbdomenExamined = true; // TWARDA FLAGA
-        _logEvent("BADANIE: Brzuch. Brak widocznych krwotoków zewnętrznych.");
+        state.isAbdomenExamined = true;
+
+        // GLOBALNA REGUŁA: Wodobrzusze przy krwawieniu z żylaków przełyku (Hipowolemia wtórna do marskości)
+        String abdDesc =
+            "Powłoki brzuszne wysklepione. Brak widocznych krwotoków.";
+        if (state.patient.hiddenCause == ReversibleCause.hypovolemia) {
+          abdDesc =
+              "Brzuch wzdęty, napięty (Wodobrzusze). Widoczne krążenie oboczne (marskość).";
+        }
+
+        _logEvent("BADANIE: Brzuch. $abdDesc");
         notifyListeners();
-        return "Powłoki brzuszne wysklepione. Brak widocznych krwotoków zewnętrznych.";
+        return abdDesc;
       } else if (target == "Szyja") {
-        state.isNeckExamined = true; // TWARDA FLAGA
+        state.isNeckExamined = true;
         bool isDistended =
             (state.patient.hiddenCause == ReversibleCause.tensionPneumothorax ||
             state.patient.hiddenCause == ReversibleCause.tamponade);
@@ -970,29 +1019,58 @@ class GameEngine extends ChangeNotifier {
         _logEvent("BADANIE: Oceniono szyję. $jvdText");
         notifyListeners();
         return "Szyja:\n$jvdText";
-      } else if (target.contains("Noga") ||
-          target.contains("Stopa") ||
-          target.contains("Nadgarstek") ||
+      } else if (target.contains("Noga") || target.contains("Stopa")) {
+        // NOGI OSOBNO
+        state.isLegsExamined = true;
+        String legsDesc = "Kończyny symetryczne. Brak obrzęków.";
+        if (state.patient.hiddenCause == ReversibleCause.thrombosis) {
+          legsDesc =
+              "Znaczny, ASYMETRYCZNY obrzęk i zasinienie jednej z łydek (podejrzenie DVT)!";
+        } else if (state.patient.hiddenCause ==
+            ReversibleCause.hypoHyperkalemia) {
+          legsDesc = "Masywne, symetryczne obrzęki ciastowate obu podudzi.";
+        }
+        _logEvent("BADANIE: Nogi. $legsDesc Brak widocznych krwotoków.");
+        notifyListeners();
+        return "$legsDesc\nBrak krwotoków.";
+      } else if (target.contains("Nadgarstek") ||
           target.contains("Dłoń") ||
           target.contains("Zgięcie")) {
-        state.isLegsExamined = true; // TWARDA FLAGA
-        _logEvent(
-          "BADANIE: Kończyny. Brak obrzęków i Brak widocznych krwotoków.",
-        );
+        // RĘCE OSOBNO (Tego wcześniej nie mieliśmy!)
+        String armsDesc = "Kończyny górne symetryczne. Brak obrzęków.";
+        if (state.patient.hiddenCause == ReversibleCause.toxins) {
+          armsDesc =
+              "UWAGA: Widoczne liczne, świeże i stare ślady po wkłuciach dożylnych!";
+        } else if (state.patient.hiddenCause ==
+            ReversibleCause.hypoHyperkalemia) {
+          armsDesc =
+              "UWAGA: Widoczna czynna przetoka tętniczo-żylna (dializacyjna) na przedramieniu!";
+        }
+        _logEvent("BADANIE: Ręce. $armsDesc Brak widocznych krwotoków.");
         notifyListeners();
-        return "Kończyny symetryczne. Brak obrzęków i krwotoków.";
+        return armsDesc;
       } else if (target == "Głowa") {
+        String headDesc =
+            "Twarz:\nSkóra ${state.patient.skinCondition.toLowerCase()}";
+        String extra = "";
+
+        // GLOBALNA REGUŁA: Zablokowane drogi oddechowe
+        if (state.patient.hiddenCause == ReversibleCause.hypoxia) {
+          extra = " UWAGA: Widoczne ciało obce / piana w ustach!";
+          headDesc += "\nObecne ciało obce / piana w ustach!";
+        }
+
         _logEvent(
-          "BADANIE: Twarz/Głowa. Skóra ${state.patient.skinCondition.toLowerCase()}.",
+          "BADANIE: Twarz/Głowa. Skóra ${state.patient.skinCondition.toLowerCase()}.$extra",
         );
         notifyListeners();
-        return "Twarz:\nSkóra ${state.patient.skinCondition.toLowerCase()}";
+        return headDesc;
       } else {
         _logEvent(
           "BADANIE: $target. Skóra: ${state.patient.skinCondition}. Brak zewnętrznych krwotoków.",
         );
         notifyListeners();
-        return "Skóra blada. Brak uszkodzeń i krwotoków zewnętrznych w tej strefie.";
+        return "Skóra blada. Brak uszkodzeń w tej strefie.";
       }
     }
     // --- NOWY BLOK: NARZĘDZIA ODDECHOWE (DRAG & DROP) ---
