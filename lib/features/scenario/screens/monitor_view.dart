@@ -21,7 +21,6 @@ class _MonitorViewState extends State<MonitorView>
   double _selectedEnergy = 150;
   double _accumulatedRotation = 0;
   bool _isSynced = false;
-
   bool _isMeasuringNibp = false;
   String _nibpValue = "---/---";
 
@@ -92,15 +91,12 @@ class _MonitorViewState extends State<MonitorView>
                         double radius = 40.0;
                         double x = details.localPosition.dx - radius;
                         double y = details.localPosition.dy - radius;
-
                         double dx = details.delta.dx;
                         double dy = details.delta.dy;
-
                         double rotationChange = x * dy - y * dx;
 
                         setDialogState(() {
                           _accumulatedRotation += rotationChange * 0.08;
-
                           if (_accumulatedRotation.abs() >= 1.0) {
                             int steps = _accumulatedRotation.truncate();
                             _selectedEnergy = (_selectedEnergy + steps * 10)
@@ -247,9 +243,7 @@ class _MonitorViewState extends State<MonitorView>
           body: SafeArea(
             child: Row(
               children: [
-                // =========================================================
-                // 1. LEWA KOLUMNA (Mniej używane przyciski)
-                // =========================================================
+                // LEWA KOLUMNA
                 Container(
                   width: 80,
                   color: const Color(0xFF1E1E1E),
@@ -292,9 +286,7 @@ class _MonitorViewState extends State<MonitorView>
                   ),
                 ),
 
-                // =========================================================
-                // 2. GŁÓWNY EKRAN MONITORA
-                // =========================================================
+                // GŁÓWNY EKRAN MONITORA
                 Expanded(
                   child: Container(
                     margin: const EdgeInsets.all(4),
@@ -316,158 +308,204 @@ class _MonitorViewState extends State<MonitorView>
                               ),
                             ),
                           )
-                        : Row(
+                        : Column(
                             children: [
+                              // DYSKRETNY PASEK CZASU
                               Container(
-                                width: 100,
-                                decoration: const BoxDecoration(
-                                  border: Border(
-                                    right: BorderSide(
-                                      color: Colors.white24,
-                                      width: 1,
-                                    ),
-                                  ),
+                                height: 20,
+                                color: Colors.black,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
                                 ),
-                                child: Column(
+                                child: Row(
                                   mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _buildNumericValue(
-                                      "HR",
-                                      _getHrValue(state),
-                                      Colors.greenAccent,
+                                    const Text(
+                                      "TRYB DIAGNOSTYCZNY",
+                                      style: TextStyle(
+                                        color: Colors.white38,
+                                        fontSize: 10,
+                                      ),
                                     ),
-                                    _buildNumericValue(
-                                      "SpO2",
-                                      _getSpo2Value(state),
-                                      Colors.cyanAccent,
+                                    Text(
+                                      "CZAS AKCJI: ${(state.totalElapsedGameTime ~/ 60).toString().padLeft(2, '0')}:${(state.totalElapsedGameTime % 60).toString().padLeft(2, '0')}",
+                                      style: const TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                    _buildNumericValue(
-                                      "EtCO2",
-                                      state.isCapnographyAttached
-                                          ? "${state.patient.etCo2}"
-                                          : "---",
-                                      Colors.yellowAccent,
-                                    ),
-                                    _buildNumericValue(
-                                      "NIBP",
-                                      _nibpValue,
-                                      Colors.white,
-                                      isSmall: true,
-                                    ),
-                                    _buildNumericValue(
-                                      "TEMP",
-                                      "---",
-                                      Colors.grey,
-                                      isSmall: true,
-                                    ), // Poprawione!
                                   ],
                                 ),
                               ),
+                              // GŁÓWNY WIDOK MONITORA
                               Expanded(
-                                child: Column(
+                                child: Row(
                                   children: [
-                                    Expanded(
-                                      flex: 3,
-                                      child: Stack(
+                                    Container(
+                                      width: 100,
+                                      decoration: const BoxDecoration(
+                                        border: Border(
+                                          right: BorderSide(
+                                            color: Colors.white24,
+                                            width: 1,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceEvenly,
                                         children: [
-                                          Positioned.fill(
-                                            child: CustomPaint(
-                                              painter: GridPainter(),
-                                            ),
+                                          _buildNumericValue(
+                                            "HR",
+                                            _getHrValue(state),
+                                            Colors.greenAccent,
                                           ),
-                                          Positioned.fill(
-                                            child: RepaintBoundary(
-                                              child: SweepWaveDisplay(
-                                                waveType: WaveType.ecg,
-                                                rhythm: state.monitorRhythm,
-                                                isCprActive: state.isCprActive,
-                                                ecgGain: state.ecgGain,
-                                                color: Colors.greenAccent,
-                                              ),
-                                            ),
+                                          _buildNumericValue(
+                                            "SpO2",
+                                            _getSpo2Value(state),
+                                            Colors.cyanAccent,
                                           ),
-                                          Positioned(
-                                            top: 5,
-                                            left: 10,
-                                            child: Text(
-                                              state.isCprActive
-                                                  ? "RKO ARTEFAKTY"
-                                                  : "II x${state.ecgGain.toStringAsFixed(2)}",
-                                              style: TextStyle(
-                                                color: state.isCprActive
-                                                    ? Colors.orange
-                                                    : Colors.greenAccent,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
+                                          _buildNumericValue(
+                                            "EtCO2",
+                                            state.isCapnographyAttached
+                                                ? "${state.patient.etCo2}"
+                                                : "---",
+                                            Colors.yellowAccent,
+                                          ),
+                                          _buildNumericValue(
+                                            "NIBP",
+                                            _nibpValue,
+                                            Colors.white,
+                                            isSmall: true,
+                                          ),
+                                          _buildNumericValue(
+                                            "TEMP",
+                                            state.isTempMeasured
+                                                ? state.patient.temperature
+                                                      .toStringAsFixed(1)
+                                                : "---",
+                                            Colors.grey,
+                                            isSmall: true,
                                           ),
                                         ],
                                       ),
                                     ),
                                     Expanded(
-                                      flex: 2,
-                                      child: Stack(
+                                      child: Column(
                                         children: [
-                                          Positioned.fill(
-                                            child: RepaintBoundary(
-                                              child: SweepWaveDisplay(
-                                                waveType: WaveType.spo2,
-                                                hasPulse:
-                                                    state.patient.hasPulse,
-                                                isAttached:
-                                                    state.isSpO2Attached,
-                                                ecgGain: 1.0,
-                                                color: Colors.cyanAccent,
-                                              ),
+                                          Expanded(
+                                            flex: 3,
+                                            child: Stack(
+                                              children: [
+                                                Positioned.fill(
+                                                  child: CustomPaint(
+                                                    painter: GridPainter(),
+                                                  ),
+                                                ),
+                                                Positioned.fill(
+                                                  child: RepaintBoundary(
+                                                    child: SweepWaveDisplay(
+                                                      waveType: WaveType.ecg,
+                                                      rhythm:
+                                                          state.monitorRhythm,
+                                                      isCprActive:
+                                                          state.isCprActive,
+                                                      ecgGain: state.ecgGain,
+                                                      color: Colors.greenAccent,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Positioned(
+                                                  top: 5,
+                                                  left: 10,
+                                                  child: Text(
+                                                    state.isCprActive
+                                                        ? "RKO ARTEFAKTY"
+                                                        : "II x${state.ecgGain.toStringAsFixed(2)}",
+                                                    style: TextStyle(
+                                                      color: state.isCprActive
+                                                          ? Colors.orange
+                                                          : Colors.greenAccent,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                          const Positioned(
-                                            top: 5,
-                                            left: 10,
-                                            child: Text(
-                                              "SpO2",
-                                              style: TextStyle(
-                                                color: Colors.cyanAccent,
-                                                fontSize: 12,
-                                              ),
+                                          Expanded(
+                                            flex: 2,
+                                            child: Stack(
+                                              children: [
+                                                Positioned.fill(
+                                                  child: RepaintBoundary(
+                                                    child: SweepWaveDisplay(
+                                                      waveType: WaveType.spo2,
+                                                      hasPulse: state
+                                                          .patient
+                                                          .hasPulse,
+                                                      isAttached:
+                                                          state.isSpO2Attached,
+                                                      ecgGain: 1.0,
+                                                      color: Colors.cyanAccent,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const Positioned(
+                                                  top: 5,
+                                                  left: 10,
+                                                  child: Text(
+                                                    "SpO2",
+                                                    style: TextStyle(
+                                                      color: Colors.cyanAccent,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Stack(
-                                        children: [
-                                          Positioned.fill(
-                                            child: RepaintBoundary(
-                                              child: SweepWaveDisplay(
-                                                waveType: WaveType.etco2,
-                                                isAttached:
-                                                    state.isCapnographyAttached,
-                                                isVentilated:
-                                                    state.airwayStatus !=
-                                                    AirwayType.none,
-                                                // SKIPPY FIX: Podajemy kable sygnałowe RKO i Tętna do wykresu!
-                                                isCprActive: state.isCprActive,
-                                                hasPulse:
-                                                    state.patient.hasPulse,
-                                                ecgGain: 1.0,
-                                                color: Colors.yellowAccent,
-                                              ),
-                                            ),
-                                          ),
-                                          const Positioned(
-                                            top: 5,
-                                            left: 10,
-                                            child: Text(
-                                              "EtCO2",
-                                              style: TextStyle(
-                                                color: Colors.yellowAccent,
-                                                fontSize: 12,
-                                              ),
+                                          Expanded(
+                                            flex: 2,
+                                            child: Stack(
+                                              children: [
+                                                Positioned.fill(
+                                                  child: RepaintBoundary(
+                                                    child: SweepWaveDisplay(
+                                                      waveType: WaveType.etco2,
+                                                      isAttached: state
+                                                          .isCapnographyAttached,
+                                                      isVentilated:
+                                                          state.airwayStatus !=
+                                                          AirwayType.none,
+                                                      isCprActive:
+                                                          state.isCprActive,
+                                                      hasPulse: state
+                                                          .patient
+                                                          .hasPulse,
+                                                      ecgGain: 1.0,
+                                                      color:
+                                                          Colors.yellowAccent,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const Positioned(
+                                                  top: 5,
+                                                  left: 10,
+                                                  child: Text(
+                                                    "EtCO2",
+                                                    style: TextStyle(
+                                                      color:
+                                                          Colors.yellowAccent,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ],
@@ -481,9 +519,7 @@ class _MonitorViewState extends State<MonitorView>
                   ),
                 ),
 
-                // =========================================================
-                // 3. PRAWA KOLUMNA (Główne Sterowanie)
-                // =========================================================
+                // PRAWA KOLUMNA
                 Container(
                   width: 110,
                   color: const Color(0xFF1E1E1E),
@@ -491,7 +527,6 @@ class _MonitorViewState extends State<MonitorView>
                     child: Column(
                       children: [
                         const SizedBox(height: 10),
-                        // WŁĄCZNIK
                         _buildSideButton(
                           Icons.power_settings_new,
                           "WŁĄCZ",
@@ -499,8 +534,6 @@ class _MonitorViewState extends State<MonitorView>
                           () => widget.engine.toggleMonitor(),
                         ),
                         const Divider(color: Colors.black, thickness: 2),
-
-                        // RKO
                         _buildSideButton(
                           state.isCprActive
                               ? Icons.stop_circle
@@ -516,16 +549,12 @@ class _MonitorViewState extends State<MonitorView>
                               widget.engine.startCpr();
                           },
                         ),
-
-                        // ENERGIA
                         _buildSideButton(
                           Icons.dialpad,
                           "1 ENERGIA\n${_selectedEnergy.toInt()}J",
                           Colors.grey[800]!,
                           _showEnergySelector,
                         ),
-
-                        // ŁADUJ
                         _buildSideButton(
                           Icons.battery_charging_full,
                           "2 ŁADUJ",
@@ -538,8 +567,6 @@ class _MonitorViewState extends State<MonitorView>
                           },
                           textColor: Colors.black,
                         ),
-
-                        // DEFIBRYLACJA
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: InkWell(
@@ -585,8 +612,6 @@ class _MonitorViewState extends State<MonitorView>
                           ),
                         ),
                         const Divider(color: Colors.black, thickness: 2),
-
-                        // ZAAWANSOWANE FUNKCJE
                         _buildSideButton(
                           Icons.waves,
                           "CECHA\nx${state.ecgGain}",
@@ -616,7 +641,6 @@ class _MonitorViewState extends State<MonitorView>
                           Colors.grey[800]!,
                           () => widget.engine.togglePacer(),
                         ),
-
                         const SizedBox(height: 10),
                       ],
                     ),
@@ -639,10 +663,8 @@ class _MonitorViewState extends State<MonitorView>
   }
 
   String _getSpo2Value(AlsScenarioState state) {
-    if (!state.isSpO2Attached) return "---"; // Poprawione na duże O
-    return state.patient.hasPulse
-        ? "${state.patient.spO2 ?? 98}"
-        : "---"; // Poprawione na duże O
+    if (!state.isSpO2Attached) return "---";
+    return state.patient.hasPulse ? "${state.patient.spO2 ?? 98}" : "---";
   }
 
   Widget _buildNumericValue(
@@ -712,10 +734,6 @@ class _MonitorViewState extends State<MonitorView>
     );
   }
 }
-
-// =========================================================
-// 🎨 ARCHITEKTURA SWEEP PAINTER
-// =========================================================
 
 enum WaveType { ecg, spo2, etco2 }
 
@@ -827,18 +845,13 @@ class _SweepWaveDisplayState extends State<SweepWaveDisplay>
       }
     } else if (widget.waveType == WaveType.etco2) {
       if (widget.isAttached == true) {
-        // 1. Pacjent oddycha i jest wentylowany -> normalna fala kapnografii
         if (widget.hasPulse == true && widget.isVentilated == true) {
           double phase = (_internalTime * 1.5) % 6;
           if (phase < 2.5) y = -25;
-        }
-        // 2. Pacjent w trakcie RKO -> mniejsze, szybsze fale wymuszone uciskami klatki
-        else if (widget.isCprActive == true) {
+        } else if (widget.isCprActive == true) {
           double phase = (_internalTime * 3.0) % 6;
           if (phase < 2.5) y = -15;
-        }
-        // 3. Brak tętna, brak RKO -> płaska linia
-        else {
+        } else {
           y = 0.0;
         }
       }
@@ -884,7 +897,6 @@ class SweepPainter extends CustomPainter {
     final path = Path();
     final double widthPerPoint = size.width / dataPoints.length;
     final double midY = size.height / 1.5;
-
     bool isFirstPoint = true;
 
     for (int i = 0; i < dataPoints.length; i++) {
@@ -896,7 +908,6 @@ class SweepPainter extends CustomPainter {
             i < (currentIndex + eraserGap) % dataPoints.length)
           inEraser = true;
       }
-
       if (inEraser) {
         isFirstPoint = true;
         continue;

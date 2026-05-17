@@ -82,7 +82,7 @@ class ScenarioDatabase {
           hiddenCause: ReversibleCause.hypothermia,
           skinCondition: 'Lodowata, blada, marmurkowata',
           chestMovement: 'Brak',
-          pupils: 'Szerokie, sztywne (objaw hipotermii)',
+          pupils: 'Szerokie, sztywne',
         ),
       ),
     ];

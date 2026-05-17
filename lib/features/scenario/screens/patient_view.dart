@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../logic/game_engine.dart';
 import '../widgets/inventory/intubation_minigame_dialog.dart';
 import '../widgets/inventory/iv_minigame_dialog.dart';
-import '../models/als_state.dart'; // MAGIA SKIPPY'EGO: Brakujący import, który wywalał błąd!
+import '../models/als_state.dart';
 import 'dart:async';
 
 class PatientView extends StatefulWidget {
@@ -17,6 +17,7 @@ class _PatientViewState extends State<PatientView>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
+
   String _examResult = "";
   String _hoveredZone = "";
   Timer? _resultTimer;
@@ -24,63 +25,33 @@ class _PatientViewState extends State<PatientView>
   bool _showIvMenu = false;
   bool _showIgelMenu = false;
 
-  int _lastLogCount = 0;
-  String _hudLog = "";
-  Timer? _hudLogTimer;
-
   @override
   void initState() {
     super.initState();
-    _lastLogCount = widget.engine.state.log.length;
-    widget.engine.addListener(_onEngineChange);
   }
 
   @override
   void dispose() {
-    widget.engine.removeListener(_onEngineChange);
     _resultTimer?.cancel();
-    _hudLogTimer?.cancel();
     super.dispose();
-  }
-
-  void _onEngineChange() {
-    if (!mounted) return;
-
-    if (widget.engine.state.log.length > _lastLogCount) {
-      String newLog = widget.engine.state.log.first;
-      String cleanLog = newLog.contains("]")
-          ? newLog.substring(newLog.indexOf(']') + 2)
-          : newLog;
-
-      setState(() {
-        _hudLog = cleanLog;
-        _lastLogCount = widget.engine.state.log.length;
-      });
-
-      _hudLogTimer?.cancel();
-      _hudLogTimer = Timer(const Duration(seconds: 4), () {
-        if (mounted) setState(() => _hudLog = "");
-      });
-    }
   }
 
   void _showResult(String tool, String target) {
     if (tool != "USG: Hokus POCUS" && tool != "Stetoskop") {
       setState(() => _equippedTool = null);
     }
+
     if (tool == "Rurka ETI" && target == "Głowa") {
       setState(() => _equippedTool = null);
-
       if (!widget.engine.state.isPreoxygenated) {
         widget.engine.verifyPreoxygenationBeforeETI();
         Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
+          if (mounted)
             showDialog(
               context: context,
               builder: (context) =>
                   IntubationMinigameDialog(engine: widget.engine),
             );
-          }
         });
       } else {
         showDialog(
@@ -90,6 +61,7 @@ class _PatientViewState extends State<PatientView>
       }
       return;
     }
+
     if (tool.startsWith("Kaniula") && target.contains("Zgięcie")) {
       setState(() => _equippedTool = null);
       showDialog(
@@ -123,7 +95,7 @@ class _PatientViewState extends State<PatientView>
       case "Oglądanie":
         return Icons.visibility;
       case "Palec":
-        return Icons.touch_app; // NOWOŚĆ!
+        return Icons.touch_app;
       case "USG: Hokus POCUS":
         return Icons.waves;
       case "Folia NRC":
@@ -202,7 +174,6 @@ class _PatientViewState extends State<PatientView>
                                   ),
                             ),
                           ),
-
                           _buildResponsiveZone(
                             "Głowa",
                             -0.76,
@@ -329,8 +300,6 @@ class _PatientViewState extends State<PatientView>
                             w,
                             h,
                           ),
-
-                          // NOWE HITBOXY TĘTNA!
                           _buildResponsiveZone(
                             "Nadgarstek Lewy",
                             -0.06,
@@ -368,17 +337,14 @@ class _PatientViewState extends State<PatientView>
                             h,
                           ),
 
-                          // --- MARKERY WIZUALNE SPRZĘTU (EBM OVERLAYS) ---
                           if (widget.engine.state.isWarmingProvided)
                             Positioned.fill(
-                              // SKIPPY FIX: IgnorePointer sprawia, że folia jest widoczna, ale przepuszcza wszystkie kliknięcia i przeciągnięcia pod spód!
                               child: IgnorePointer(
                                 child: Container(
                                   color: Colors.yellowAccent.withOpacity(0.15),
                                 ),
                               ),
                             ),
-
                           if (widget.engine.state.airwayStatus !=
                               AirwayType.none)
                             _buildVisualOverlay(
@@ -389,7 +355,6 @@ class _PatientViewState extends State<PatientView>
                               w,
                               h,
                             ),
-
                           if (widget.engine.state.isIvInserted)
                             _buildVisualOverlay(
                               -0.26,
@@ -451,64 +416,6 @@ class _PatientViewState extends State<PatientView>
               ),
             ),
 
-          Builder(
-            builder: (context) {
-              bool isRoutineExamLog =
-                  _hudLog.startsWith("BADANIE:") ||
-                  _hudLog.startsWith("USG:") ||
-                  _hudLog.startsWith("AKCJA: Założono") ||
-                  _hudLog.startsWith("DIAGNOZA");
-              bool showHud =
-                  _hudLog.isNotEmpty &&
-                  !(isRoutineExamLog && _examResult.isNotEmpty);
-              if (!showHud) return const SizedBox.shrink();
-
-              return Positioned(
-                top: 20,
-                left: MediaQuery.of(context).size.width * 0.15,
-                right: MediaQuery.of(context).size.width * 0.15,
-                child: SafeArea(
-                  child: AnimatedOpacity(
-                    opacity: _hudLog.isNotEmpty ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 300),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _hudLog.contains("BŁĄD")
-                            ? Colors.red[900]?.withOpacity(0.95)
-                            : (_hudLog.contains("SUKCES")
-                                  ? Colors.green[900]?.withOpacity(0.95)
-                                  : Colors.black87),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _hudLog.contains("BŁĄD")
-                              ? Colors.redAccent
-                              : Colors.grey,
-                          width: 2,
-                        ),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black54, blurRadius: 10),
-                        ],
-                      ),
-                      child: Text(
-                        _hudLog,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-
           if (_examResult.isNotEmpty)
             Positioned(
               top: 150,
@@ -538,7 +445,6 @@ class _PatientViewState extends State<PatientView>
               ),
             ),
 
-          // --- NARZĘDZIA PODRĘCZNE (Palec i Oko ZAWSZE NA WIERZCHU) ---
           Positioned(
             top: 20,
             right: 80,
@@ -559,7 +465,6 @@ class _PatientViewState extends State<PatientView>
             ),
           ),
 
-          // --- INTERFEJS NARZĘDZI ---
           if (_equippedTool == null) ...[
             if (widget.engine.state.isBagOpen) _buildBagOverlay(),
             if (widget.engine.state.isAirwayMenuOpen) _buildAirwayOverlay(),
@@ -705,7 +610,6 @@ class _PatientViewState extends State<PatientView>
                           ),
                         ),
                       ),
-                      // USUNIĘTO OKO Z TORBY! ZNAJDUJE SIĘ NA ZEWNĄTRZ!
                       _buildToolEquipButton("Latarka", Icons.highlight),
                       _buildToolEquipButton(
                         "Stetoskop",
@@ -775,7 +679,7 @@ class _PatientViewState extends State<PatientView>
                       backgroundColor: Colors.blue[900],
                     ),
                     onPressed: widget.engine.performManualAirwayManeuver,
-                    child: const Text("Udrożnij drogi oddechowe"), // NOWA NAZWA
+                    child: const Text("Udrożnij drogi oddechowe"),
                   ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
@@ -968,9 +872,7 @@ class _PatientViewState extends State<PatientView>
         setState(() => _hoveredZone = displayLabel);
         return true;
       },
-      onLeave: (data) {
-        setState(() => _hoveredZone = "");
-      },
+      onLeave: (data) => setState(() => _hoveredZone = ""),
       onAcceptWithDetails: (details) {
         setState(() => _hoveredZone = "");
         _showResult(details.data, baseTarget);
@@ -993,8 +895,6 @@ class _PatientViewState extends State<PatientView>
       },
     );
   }
-
-  // --- ZUPEŁNIE NOWE METODY POMOCNICZE UI ---
 
   Widget _buildFloatingToolButton(String name, IconData icon, Color color) {
     bool isActive = _equippedTool == name;

@@ -394,9 +394,7 @@ class GameEngine extends ChangeNotifier {
       _logEvent("AKCJA: Podano Nalokson ($dose).");
       try {
         if (state.patient.hiddenCause == ReversibleCause.toxins) {
-          _logEvent(
-            "SUKCES EBM: Odtrutka podana właściwie. Częstość oddechów rośnie.",
-          );
+          _logEvent("SUKCES EBM: Odtrutka podana właściwie");
         } else {
           _logEvent("INFO: Brak nagłej reakcji po podaniu Naloksonu.");
         }
@@ -654,7 +652,7 @@ class GameEngine extends ChangeNotifier {
     if (state.airwayStatus == AirwayType.endotracheal) {
       state.isIntubationVerified = true;
       if (state.intubationStatus == IntubationStatus.correct)
-        _logEvent("DIAGNOZA: Szmery słyszalne symetrycznie.");
+        _logEvent("DIAGNOZA: Szmery słyszalne");
       else
         _logEvent("DIAGNOZA: Problem! Rurka w przełyku lub za głęboko!");
     }
@@ -809,7 +807,7 @@ class GameEngine extends ChangeNotifier {
         String sounds = "Brak szmerów / Zbyt cicho";
         if (state.airwayStatus == AirwayType.endotracheal) {
           if (state.intubationStatus == IntubationStatus.esophageal)
-            sounds = "Brak szmerów (Rurka w przełyku)";
+            sounds = "Brak szmerów";
           else if (state.intubationStatus == IntubationStatus.rightMainstem &&
               isLeft)
             sounds = "CISZA!";
@@ -817,7 +815,7 @@ class GameEngine extends ChangeNotifier {
               !isLeft)
             sounds = "Czysty szmer pęcherzykowy";
           else
-            sounds = "Symetryczny szmer pęcherzykowy";
+            sounds = "szmer pęcherzykowy";
         } else if (state.airwayStatus == AirwayType.igel ||
             state.airwayStatus == AirwayType.bvm) {
           sounds = "Szmer pęcherzykowy (Wentylacja wymuszona)";
@@ -912,15 +910,24 @@ class GameEngine extends ChangeNotifier {
     }
     if (tool == "Oglądanie" || tool == "Badanie Fizykalne") {
       if (target.contains("Klatka")) {
+        // Logika ruchów oddechowych
+        bool isVentilated =
+            state.airwayStatus == AirwayType.bvm ||
+            state.airwayStatus == AirwayType.igel ||
+            state.airwayStatus == AirwayType.endotracheal;
+        String chestMove = isVentilated
+            ? "Klatka unosi się symetrycznie (sztuczna wentylacja)."
+            : "BRAK własnych ruchów oddechowych.";
+
         _logEvent(
-          "BADANIE: Klatka piersiowa. BRAK WIDOCZNYCH KRWOTOKÓW ZEWNĘTRZNYCH.",
+          "BADANIE: Klatka piersiowa. $chestMove Szacowana waga: ~${state.patient.weight.toStringAsFixed(0)} kg. BRAK KRWOTOKÓW ZEWNĘTRZNYCH.",
         );
         notifyListeners();
-        return "Klatka unosi się symetrycznie. Brak ran penetrujących, BRAK WIDOCZNYCH KRWOTOKÓW ZEWNĘTRZNYCH.";
+        return "$chestMove\nBrak ran, brak krwotoków.\nWaga: ~${state.patient.weight.toStringAsFixed(0)} kg";
       } else if (target.contains("brzusze")) {
-        _logEvent("BADANIE: Brzuch. BRAK WIDOCZNYCH KRWOTOKÓW ZEWNĘTRZNYCH.");
+        _logEvent("BADANIE: Brzuch. Brak widocznych krwotoków zewnętrznych.");
         notifyListeners();
-        return "Powłoki brzuszne wysklepione. BRAK WIDOCZNYCH KRWOTOKÓW ZEWNĘTRZNYCH.";
+        return "Powłoki brzuszne wysklepione. Brak widocznych krwotoków zewnętrznych.";
       } else if (target == "Szyja") {
         bool isDistended =
             (state.patient.hiddenCause == ReversibleCause.tensionPneumothorax ||
@@ -937,7 +944,7 @@ class GameEngine extends ChangeNotifier {
           target.contains("Dłoń") ||
           target.contains("Zgięcie")) {
         _logEvent(
-          "BADANIE: Kończyny. Brak obrzęków i BRAK WIDOCZNYCH KRWOTOKÓW.",
+          "BADANIE: Kończyny. Brak obrzęków i Brak widocznych krwotoków.",
         );
         notifyListeners();
         return "Kończyny symetryczne. Brak obrzęków i krwotoków.";
@@ -1074,10 +1081,21 @@ class GameEngine extends ChangeNotifier {
         _logEvent("SUKCES EBM: Hipotermia wykluczona lub odpowiednio leczona.");
       }
     } else if (cause == "Hipowolemia") {
-      if (!state.isUsgDone && !state.isPhysicalExamDone) {
+      bool checkedChest = state.auditLog.any(
+        (l) => l.contains("BADANIE: Klatka"),
+      );
+      bool checkedAbdomen = state.auditLog.any(
+        (l) => l.contains("BADANIE: Brzuch"),
+      );
+      bool checkedLegs = state.auditLog.any(
+        (l) => l.contains("BADANIE: Kończyny"),
+      );
+
+      if (!state.isUsgDone &&
+          !(checkedChest && checkedAbdomen && checkedLegs)) {
         success = false;
         _logEvent(
-          "BŁĄD EBM: Jak chcesz ocenić wolemię w NZK bez zbadania żył szyjnych (Exposure) lub USG IVC?!",
+          "BŁĄD EBM: Aby wykluczyć krwotok/hipowolemię bez USG (IVC), musisz obejrzeć klatkę, brzuch i kończyny pacjenta!",
           isError: true,
         );
       } else {
@@ -1086,17 +1104,39 @@ class GameEngine extends ChangeNotifier {
           "SUKCES EBM: Hipowolemia zabezpieczona/wykluczona diagnostycznie.",
         );
       }
-    } else if (cause == "Tamponada" || cause == "Thrombosis (Zator)") {
-      if (!state.isUsgDone && !state.isPhysicalExamDone) {
+    } else if (cause == "Tamponada") {
+      bool checkedNeck = state.auditLog.any(
+        (l) => l.contains("BADANIE: Oceniono szyję"),
+      );
+      if (!state.isUsgDone && !checkedNeck) {
         success = false;
         _logEvent(
-          "BŁĄD EBM: $cause bez USG lub oceny wypełnienia żył szyjnych?! Wrzuć głowicę na klatkę (Hokus POCUS) lub zrób badanie urazowe!",
+          "BŁĄD EBM: Tamponada bez USG (Serce) lub oceny wypełnienia żył szyjnych?! Użyj głowicy lub zbadaj szyję!",
           isError: true,
         );
       } else {
         success = true;
         _logEvent(
           "SUKCES EBM: Przyczyna $cause wykluczona na podstawie USG/Badania fizykalnego.",
+        );
+      }
+    } else if (cause == "Thrombosis (Zator)") {
+      bool checkedNeck = state.auditLog.any(
+        (l) => l.contains("BADANIE: Oceniono szyję"),
+      );
+      bool checkedLegs = state.auditLog.any(
+        (l) => l.contains("BADANIE: Kończyny"),
+      );
+      if (!checkedNeck || !checkedLegs) {
+        success = false;
+        _logEvent(
+          "BŁĄD EBM: Aby rozpoznać/wykluczyć zator w NZK, obejrzyj żyły szyjne oraz kończyny dolne (obrzęki/DVT)!",
+          isError: true,
+        );
+      } else {
+        success = true;
+        _logEvent(
+          "SUKCES EBM: Diagnostyka zatorowości przeprowadzona. Wdrożono optymalne postępowanie.",
         );
       }
     } else if (cause == "Tension pneumothorax (Odma)") {
@@ -1161,9 +1201,7 @@ class GameEngine extends ChangeNotifier {
 
   void provideThermalComfort() {
     state.isWarmingProvided = true;
-    _logEvent(
-      "AKCJA: Rozpoczęto aktywne ogrzewanie pacjenta / zapewniono komfort termiczny.",
-    );
+    _logEvent("AKCJA: zapewniono komfort termiczny.");
     notifyListeners();
   }
 
