@@ -52,7 +52,8 @@ class ScenarioDatabase {
           temperature: 36.6,
           bloodGlucose: 140,
           weight: 95.0,
-          hiddenCause: ReversibleCause.thrombosis,
+          hiddenCause: ReversibleCause
+              .none, // SKIPPY FIX: Zamienione z thrombosis, by umożliwić standardowy sukces przez RKO i defibrylację!
           skinCondition: 'Blada, spocona',
           chestMovement: 'Brak własnych ruchów oddechowych',
           pupils: 'Szerokie, wolna reakcja',

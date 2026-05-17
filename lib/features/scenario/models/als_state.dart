@@ -43,7 +43,6 @@ class AlsScenarioState {
   int selectedEnergy = 150;
   int chargedEnergy = 0;
   int lastShockEnergy = 0;
-  bool isSpo2Attached = false;
 
   List<String> preparedDrugs = [];
   bool isPreparingDrug = false;
@@ -73,6 +72,11 @@ class AlsScenarioState {
   bool isWarmingProvided = false; // NOWE: Terapia hipotermii
   bool isSpO2Attached = false; // NOWE: Czy klips jest na palcu?
   bool isUsgDone = false; // NOWE: Czy zrobiono Hokus POCUS?
+  // --- TWARDE FLAGI BADANIA FIZYKALNEGO (do 4H4T) ---
+  bool isChestExamined = false;
+  bool isAbdomenExamined = false;
+  bool isNeckExamined = false;
+  bool isLegsExamined = false;
 
   // BRKAUJĄCE OGNIWO: Zbiór przyczyn, które zespół rozważa (krótkie kliknięcie)
   Set<String> considered4H4T = {};

@@ -939,7 +939,8 @@ class GameEngine extends ChangeNotifier {
     }
     if (tool == "Oglądanie" || tool == "Badanie Fizykalne") {
       if (target.contains("Klatka")) {
-        // Logika ruchów oddechowych
+        state.isChestExamined = true; // TWARDA FLAGA
+
         bool isVentilated =
             state.airwayStatus == AirwayType.bvm ||
             state.airwayStatus == AirwayType.igel ||
@@ -954,10 +955,12 @@ class GameEngine extends ChangeNotifier {
         notifyListeners();
         return "$chestMove\nBrak ran, brak krwotoków.\nWaga: ~${state.patient.weight.toStringAsFixed(0)} kg";
       } else if (target.contains("brzusze")) {
+        state.isAbdomenExamined = true; // TWARDA FLAGA
         _logEvent("BADANIE: Brzuch. Brak widocznych krwotoków zewnętrznych.");
         notifyListeners();
         return "Powłoki brzuszne wysklepione. Brak widocznych krwotoków zewnętrznych.";
       } else if (target == "Szyja") {
+        state.isNeckExamined = true; // TWARDA FLAGA
         bool isDistended =
             (state.patient.hiddenCause == ReversibleCause.tensionPneumothorax ||
             state.patient.hiddenCause == ReversibleCause.tamponade);
@@ -972,6 +975,7 @@ class GameEngine extends ChangeNotifier {
           target.contains("Nadgarstek") ||
           target.contains("Dłoń") ||
           target.contains("Zgięcie")) {
+        state.isLegsExamined = true; // TWARDA FLAGA
         _logEvent(
           "BADANIE: Kończyny. Brak obrzęków i Brak widocznych krwotoków.",
         );
@@ -1110,18 +1114,11 @@ class GameEngine extends ChangeNotifier {
         _logEvent("SUKCES EBM: Hipotermia wykluczona lub odpowiednio leczona.");
       }
     } else if (cause == "Hipowolemia") {
-      bool checkedChest = state.auditLog.any(
-        (l) => l.contains("BADANIE: Klatka"),
-      );
-      bool checkedAbdomen = state.auditLog.any(
-        (l) => l.contains("BADANIE: Brzuch"),
-      );
-      bool checkedLegs = state.auditLog.any(
-        (l) => l.contains("BADANIE: Kończyny"),
-      );
-
+      // SKIPPY FIX: Pancerna weryfikacja na podstawie twardych flag!
       if (!state.isUsgDone &&
-          !(checkedChest && checkedAbdomen && checkedLegs)) {
+          !(state.isChestExamined &&
+              state.isAbdomenExamined &&
+              state.isLegsExamined)) {
         success = false;
         _logEvent(
           "BŁĄD EBM: Aby wykluczyć krwotok/hipowolemię bez USG (IVC), musisz obejrzeć klatkę, brzuch i kończyny pacjenta!",
@@ -1134,10 +1131,7 @@ class GameEngine extends ChangeNotifier {
         );
       }
     } else if (cause == "Tamponada") {
-      bool checkedNeck = state.auditLog.any(
-        (l) => l.contains("BADANIE: Oceniono szyję"),
-      );
-      if (!state.isUsgDone && !checkedNeck) {
+      if (!state.isUsgDone && !state.isNeckExamined) {
         success = false;
         _logEvent(
           "BŁĄD EBM: Tamponada bez USG (Serce) lub oceny wypełnienia żył szyjnych?! Użyj głowicy lub zbadaj szyję!",
@@ -1150,13 +1144,7 @@ class GameEngine extends ChangeNotifier {
         );
       }
     } else if (cause == "Thrombosis (Zator)") {
-      bool checkedNeck = state.auditLog.any(
-        (l) => l.contains("BADANIE: Oceniono szyję"),
-      );
-      bool checkedLegs = state.auditLog.any(
-        (l) => l.contains("BADANIE: Kończyny"),
-      );
-      if (!checkedNeck || !checkedLegs) {
+      if (!state.isNeckExamined || !state.isLegsExamined) {
         success = false;
         _logEvent(
           "BŁĄD EBM: Aby rozpoznać/wykluczyć zator w NZK, obejrzyj żyły szyjne oraz kończyny dolne (obrzęki/DVT)!",

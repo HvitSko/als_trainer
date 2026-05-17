@@ -96,7 +96,7 @@ class _MonitorViewState extends State<MonitorView>
                         double rotationChange = x * dy - y * dx;
 
                         setDialogState(() {
-                          _accumulatedRotation += rotationChange * 0.08;
+                          _accumulatedRotation += rotationChange * 0.02;
                           if (_accumulatedRotation.abs() >= 1.0) {
                             int steps = _accumulatedRotation.truncate();
                             _selectedEnergy = (_selectedEnergy + steps * 10)
