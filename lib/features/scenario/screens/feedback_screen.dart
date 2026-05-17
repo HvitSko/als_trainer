@@ -40,7 +40,7 @@ class FeedbackScreen extends StatelessWidget {
 
     bool isRosc = state.patient.hasPulse;
 
-    // FILTROWANIE LOGÓW DO OSOBNYCH RAMEK:
+    // FILTROWANIE LOGÓW AUDYTU (Dziennik interwencji)
     final successes = state.auditLog
         .where((l) => l.contains("SUKCES"))
         .toList();
@@ -60,6 +60,14 @@ class FeedbackScreen extends StatelessWidget {
               !l.contains("OSTRZEŻENIE") &&
               !l.contains("STRATA CZASU"),
         )
+        .toList();
+
+    // MAGIA SKIPPY'EGO: FILTROWANIE WSKAZÓWEK INSTRUKTORA
+    final positiveFeedback = state.instructorFeedback
+        .where((f) => f.contains("SUKCES"))
+        .toList();
+    final negativeFeedback = state.instructorFeedback
+        .where((f) => !f.contains("SUKCES"))
         .toList();
 
     return Scaffold(
@@ -143,7 +151,7 @@ class FeedbackScreen extends StatelessWidget {
               const SizedBox(height: 20),
 
               // SEKCJA 1: SUKCESY EBM (ZIELONA RAMKA)
-              if (successes.isNotEmpty) ...[
+              if (successes.isNotEmpty || positiveFeedback.isNotEmpty) ...[
                 const Text(
                   "SUKCESY I DOBRE PRAKTYKI (EBM)",
                   style: TextStyle(
@@ -162,24 +170,36 @@ class FeedbackScreen extends StatelessWidget {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: successes
-                        .map(
-                          (s) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Text(
-                              "✅ ${s.substring(s.indexOf(']') + 2)}",
-                              style: const TextStyle(color: Colors.white),
+                    children: [
+                      ...positiveFeedback.map(
+                        (fb) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            "🏆 $fb",
+                            style: const TextStyle(
+                              color: Colors.greenAccent,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        )
-                        .toList(),
+                        ),
+                      ),
+                      ...successes.map(
+                        (s) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            "✅ ${s.substring(s.indexOf(']') + 2)}",
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 20),
               ],
 
               // SEKCJA 2: BŁĘDY I OSTRZEŻENIA (CZERWONA RAMKA)
-              if (errors.isNotEmpty || state.instructorFeedback.isNotEmpty) ...[
+              if (errors.isNotEmpty || negativeFeedback.isNotEmpty) ...[
                 const Text(
                   "BŁĘDY KRYTYCZNE I OSTRZEŻENIA",
                   style: TextStyle(
@@ -199,7 +219,7 @@ class FeedbackScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ...state.instructorFeedback.map(
+                      ...negativeFeedback.map(
                         (fb) => Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Text(

@@ -24,8 +24,8 @@ class MainGameScreen extends StatefulWidget {
 
 class _MainGameScreenState extends State<MainGameScreen> {
   late GameEngine engine;
-  final PageController _pageController = PageController(initialPage: 0);
-  int _currentPage = 0;
+  final PageController _pageController = PageController(initialPage: 1);
+  int _currentPage = 1;
 
   int _lastLogCount = 0;
   String _hudLog = "";

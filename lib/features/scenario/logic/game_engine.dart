@@ -172,15 +172,33 @@ class GameEngine extends ChangeNotifier {
     notifyListeners();
     await Future.delayed(const Duration(seconds: 3));
 
-    // NAPRAWIONY ROSC!
+    // NAPRAWIONY ROSC I ZDROWA LOGIKA!
     String causeKey = _mapCauseToKey(state.patient.hiddenCause);
-    bool isCauseResolved = state.h4tStatus[causeKey] == 1;
+    bool isCauseResolved = causeKey.isEmpty
+        ? true
+        : state.h4tStatus[causeKey] == 1;
 
-    int roscChance = isCauseResolved
-        ? 70
-        : 5; // Jeśli wyleczysz przyczynę, masz 70% szans!
+    // Sprawdzamy czy zespół ALS podjął JAKIEKOLWIEK zaawansowane działania (żeby nie było darmowego ROSC po 2 cyklach gapienia się w pacjenta)
+    bool isAlsCareProvided =
+        state.airwayStatus != AirwayType.none ||
+        state.shocksDelivered > 0 ||
+        state.administeredDrugs.isNotEmpty;
+
+    int roscChance = 0;
+    if (!isAlsCareProvided) {
+      roscChance = 0; // Brak ALS = Brak szans na ROSC w naszej symulacji
+    } else if (state.patient.hiddenCause == ReversibleCause.none) {
+      roscChance =
+          25; // Standardowe NZK bez przyczyny specjalnej - 25% szans co pętlę przy poprawnym ALS
+    } else {
+      roscChance = isCauseResolved
+          ? 70
+          : 0; // Jeśli jest konkretna przyczyna, bez jej wyleczenia szansa to 0%!
+    }
+
     roscChance -=
         (state.criticalErrorsCount * 10); // Kary za morderstwa po drodze
+    if (roscChance < 0) roscChance = 0;
 
     if (state.cprCyclesCompleted >= 2 && Random().nextInt(100) < roscChance) {
       state.monitorRhythm = PatientRhythm.pea;
@@ -189,9 +207,20 @@ class GameEngine extends ChangeNotifier {
       _logEvent(
         "SUKCES: Wykryto powrót fali tętna! ROSC! Zatrzymanie scenariusza.",
       );
-      state.instructorFeedback.add(
-        "SUKCES: Poprawnie zdiagnozowałeś i wyeliminowałeś przyczynę ($causeKey), co doprowadziło do powrotu krążenia (ROSC).",
-      );
+
+      // MAGIA SKIPPY'EGO: Jeśli to "zwykłe" NZK LUB Zator (którego w ZRM nie leczymy przyczynowo w trakcie RKO)
+      if (state.patient.hiddenCause == ReversibleCause.none ||
+          state.patient.hiddenCause == ReversibleCause.thrombosis) {
+        state.instructorFeedback.add(
+          "SUKCES: Prowadziłeś interwencję zgodnie z wytycznymi ALS. Poprawnie przeanalizowałeś i wykluczyłeś/zabezpieczyłeś odwracalne przyczyny zatrzymania krążenia (4H4T), co doprowadziło do powrotu krążenia (ROSC).",
+        );
+      } else {
+        // Dla innych przyczyn (np. Hipoksja, Hipotermia), które realnie ZABEZPIECZAMY
+        state.instructorFeedback.add(
+          "SUKCES: Poprawnie zdiagnozowałeś i zabezpieczyłeś główną przyczynę ($causeKey), co doprowadziło do powrotu krążenia (ROSC).",
+        );
+      }
+
       notifyListeners();
       return;
     }

@@ -300,7 +300,7 @@ class _MonitorViewState extends State<MonitorView>
                     child: !isMonitorOn
                         ? const Center(
                             child: Text(
-                              "LIFEPAK 15",
+                              "MONITOR WYŁĄCZONY",
                               style: TextStyle(
                                 color: Colors.white12,
                                 fontSize: 30,
@@ -623,11 +623,8 @@ class _MonitorViewState extends State<MonitorView>
                         _buildSideButton(
                           Icons.sync,
                           "SYNC",
-                          _isSynced ? Colors.orange : Colors.grey[800]!,
-                          () {
-                            if (isMonitorOn)
-                              setState(() => _isSynced = !_isSynced);
-                          },
+                          Colors.grey[800]!,
+                          () {},
                         ),
                         _buildSideButton(
                           Icons.compress,
@@ -639,7 +636,7 @@ class _MonitorViewState extends State<MonitorView>
                           Icons.bolt_outlined,
                           "STYMULATOR",
                           Colors.grey[800]!,
-                          () => widget.engine.togglePacer(),
+                          () {},
                         ),
                         const SizedBox(height: 10),
                       ],
