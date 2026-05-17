@@ -74,6 +74,7 @@ class AlsScenarioState {
   bool isUsgDone = false; // NOWE: Czy zrobiono Hokus POCUS?
   // --- TWARDE FLAGI BADANIA FIZYKALNEGO (do 4H4T) ---
   bool isChestExamined = false;
+  bool isAirwayCleared = false; // Czy odessano wydzielinę/ciało obce?
   bool isAbdomenExamined = false;
   bool isNeckExamined = false;
   bool isLegsExamined = false;

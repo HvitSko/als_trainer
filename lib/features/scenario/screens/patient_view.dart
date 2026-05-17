@@ -82,6 +82,8 @@ class _PatientViewState extends State<PatientView>
   IconData _getIconForTool(String tool) {
     if (tool.contains("I-gel")) return Icons.masks;
     switch (tool) {
+      case "Ssak":
+        return Icons.water_drop;
       case "Latarka":
         return Icons.highlight;
       case "Stetoskop":
@@ -127,7 +129,8 @@ class _PatientViewState extends State<PatientView>
         return "Nakłuj / Klips";
     } else if (_equippedTool == "Worek BVM" ||
         _equippedTool == "Rurka ETI" ||
-        _equippedTool!.contains("I-gel")) {
+        _equippedTool!.contains("I-gel") ||
+        _equippedTool == "Ssak") {
       if (baseTarget == "Głowa") return "ZABEZPIECZ DROGI";
     } else if (_equippedTool == "Palec") {
       if (baseTarget.contains("Nadgarstek") ||
@@ -611,6 +614,7 @@ class _PatientViewState extends State<PatientView>
                         ),
                       ),
                       _buildToolEquipButton("Latarka", Icons.highlight),
+                      _buildToolEquipButton("Ssak", Icons.water_drop),
                       _buildToolEquipButton(
                         "Stetoskop",
                         Icons.medical_services,

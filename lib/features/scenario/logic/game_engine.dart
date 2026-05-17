@@ -909,6 +909,17 @@ class GameEngine extends ChangeNotifier {
       // ZMIANA Z "Noga" NA "Stopa"
       attachSpO2();
       return "Założono klips SpO2\n(Odczyt na monitorze)";
+    } else if (tool == "Ssak") {
+      if (target == "Głowa") {
+        state.isAirwayCleared = true;
+        _logEvent(
+          "AKCJA: Użyto ssaka / szczypiec Magilla. Oczyszczono drogi oddechowe.",
+        );
+        notifyListeners();
+        return "Drogi oddechowe czyste.";
+      } else {
+        return "Ssak używamy tylko w obrębie jamy ustnej!";
+      }
     } else if (tool == "USG: Hokus POCUS") {
       state.isUsgDone = true;
       if (target == "Nadbrzusze") {
@@ -937,11 +948,18 @@ class GameEngine extends ChangeNotifier {
           );
           notifyListeners();
           return "USG (Opłucna):\nBrak ślizgania!";
-        } else if (pneumo) {
-          // W przyszłości zrobimy odmę lewo/prawo stronną
+        } else if (pneumo && isLeft) {
+          // GLOBALNA REGUŁA: Odma u nas jest lewostronna, kod kreskowy tylko po lewej!
           _logEvent("USG: Opłucna ($target). BRAK SLIDINGU (Kod Kreskowy)!");
           notifyListeners();
-          return "USG (Opłucna):\nBrak ślizgania!";
+          return "USG (Opłucna):\nBRAK ŚLIZGANIA (Odma)!";
+        } else if (pneumo && !isLeft) {
+          // Prawe płuco w odmie lewostronnej ślizga się prawidłowo
+          _logEvent(
+            "USG: Opłucna ($target). Prawidłowy objaw ślizgania (Seashore Sign).",
+          );
+          notifyListeners();
+          return "USG (Opłucna):\nŚlizganie obecne";
         } else if (rightMainstem && isLeft) {
           _logEvent("USG: Opłucna ($target). BRAK SLIDINGU!");
           notifyListeners();
@@ -1054,8 +1072,9 @@ class GameEngine extends ChangeNotifier {
             "Twarz:\nSkóra ${state.patient.skinCondition.toLowerCase()}";
         String extra = "";
 
-        // GLOBALNA REGUŁA: Zablokowane drogi oddechowe
-        if (state.patient.hiddenCause == ReversibleCause.hypoxia) {
+        // UWAGA: Ciało obce jest widoczne TYLKO dopóki go nie odessiesz!
+        if (state.patient.hiddenCause == ReversibleCause.hypoxia &&
+            !state.isAirwayCleared) {
           extra = " UWAGA: Widoczne ciało obce / piana w ustach!";
           headDesc += "\nObecne ciało obce / piana w ustach!";
         }
