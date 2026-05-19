@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../logic/game_engine.dart';
+import '../../../../app_localization.dart'; // IMPORT TŁUMACZA
 
 class H4TDialog extends StatefulWidget {
   final GameEngine engine;
@@ -53,13 +54,12 @@ class _H4TDialogState extends State<H4TDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // GÓRNA BELKA (TYTUŁ I ZAMYKACZ)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Diagnostyka 4H4T',
-                      style: TextStyle(
+                    Text(
+                      AppLoc.tr('Diagnostyka 4H4T', '4H4T Diagnostics'),
+                      style: const TextStyle(
                         color: Colors.purpleAccent,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -79,16 +79,18 @@ class _H4TDialogState extends State<H4TDialog> {
                   thickness: 1,
                 ),
 
-                // TWÓJ STARY, ZŁOTY KOD OPAKOWANY BEZPIECZNIE
                 Flexible(
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          '4H (Długie naciśnięcie ocenia)',
-                          style: TextStyle(color: Colors.blueAccent),
+                        Text(
+                          AppLoc.tr(
+                            '4H (Długie naciśnięcie ocenia)',
+                            '4H (Long press to evaluate)',
+                          ),
+                          style: const TextStyle(color: Colors.blueAccent),
                         ),
                         Wrap(
                           spacing: 8,
@@ -98,9 +100,12 @@ class _H4TDialogState extends State<H4TDialog> {
                               .toList(),
                         ),
                         const SizedBox(height: 20),
-                        const Text(
-                          '4T (Długie naciśnięcie ocenia)',
-                          style: TextStyle(color: Colors.redAccent),
+                        Text(
+                          AppLoc.tr(
+                            '4T (Długie naciśnięcie ocenia)',
+                            '4T (Long press to evaluate)',
+                          ),
+                          style: const TextStyle(color: Colors.redAccent),
                         ),
                         Wrap(
                           spacing: 8,
@@ -127,41 +132,69 @@ class _H4TDialogState extends State<H4TDialog> {
     if (status == 1) bgColor = Colors.green[800]!;
     if (status == -1) bgColor = Colors.redAccent;
 
+    // MAGIA TŁUMACZA DO WIDOKU ENUMÓW (Wysyłamy do silnika polską nazwę bazową, żeby logika działała, ale w UI widzimy język)
+    String displayCause = cause;
+    if (AppLoc.isEn) {
+      if (cause == "Hipoksja") displayCause = "Hypoxia";
+      if (cause == "Hipowolemia") displayCause = "Hypovolemia";
+      if (cause == "Hipo/Hiperkaliemia") displayCause = "Hypo/Hyperkalemia";
+      if (cause == "Hipotermia") displayCause = "Hypothermia";
+      if (cause == "Tamponada") displayCause = "Tamponade";
+      if (cause == "Toxins (Zatrucia)") displayCause = "Toxins";
+      if (cause == "Tension pneumothorax (Odma)")
+        displayCause = "Tension Pneumothorax";
+      if (cause == "Thrombosis (Zator)") displayCause = "Thrombosis (PE)";
+    }
+
     return GestureDetector(
-      onLongPress: () => _showEvaluationDialog(context, cause),
+      onLongPress: () => _showEvaluationDialog(context, cause, displayCause),
       child: ActionChip(
-        label: Text(cause, style: const TextStyle(color: Colors.white)),
+        label: Text(displayCause, style: const TextStyle(color: Colors.white)),
         backgroundColor: bgColor,
         onPressed: () => widget.engine.considerCause(cause),
       ),
     );
   }
 
-  void _showEvaluationDialog(BuildContext context, String cause) {
+  void _showEvaluationDialog(
+    BuildContext context,
+    String cause,
+    String displayCause,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.grey[900],
         title: Text(
-          "Ocena: $cause",
+          "${AppLoc.tr('Ocena: ', 'Evaluate: ')}$displayCause",
           style: const TextStyle(color: Colors.orangeAccent),
         ),
-        content: const Text(
-          "Czy podjęto interwencje diagnostyczno-lecznicze, aby odhaczyć ten problem?",
-          style: TextStyle(color: Colors.white),
+        content: Text(
+          AppLoc.tr(
+            "Czy podjęto interwencje diagnostyczno-lecznicze, aby odhaczyć ten problem?",
+            "Have diagnostic and therapeutic interventions been taken to clear this problem?",
+          ),
+          style: const TextStyle(color: Colors.white),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("NIE"),
+            child: Text(AppLoc.tr("NIE", "NO")),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             onPressed: () {
               Navigator.pop(ctx);
-              widget.engine.evaluate4H4TCause(cause);
+              widget.engine.evaluate4H4TCause(
+                cause,
+              ); // Do silnika EBM leci Polska nazwa bazowa, żeby nie psuć switchy
             },
-            child: const Text("TAK, Wykluczone/Zabezpieczone"),
+            child: Text(
+              AppLoc.tr(
+                "TAK, Wykluczone/Zabezpieczone",
+                "YES, Ruled out/Secured",
+              ),
+            ),
           ),
         ],
       ),

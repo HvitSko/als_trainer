@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:async'; // POPRAWNY IMPORT NA SAMEJ GÓRZE!
+import 'dart:async';
 
 import '../logic/game_engine.dart';
 import '../models/scenario_model.dart';
@@ -11,6 +11,7 @@ import 'feedback_screen.dart';
 import '../widgets/inventory/ampularium.dart';
 import '../widgets/inventory/h4t_dialog.dart';
 import 'scenario_intro_screen.dart';
+import '../../../app_localization.dart'; // IMPORT TŁUMACZA
 
 class MainGameScreen extends StatefulWidget {
   final Scenario scenario;
@@ -36,17 +37,13 @@ class _MainGameScreenState extends State<MainGameScreen> {
     super.initState();
     engine = GameEngine(widget.scenario, widget.mode);
     _lastLogCount = engine.state.log.length;
-
-    // JEDEN GŁÓWNY LISTENER dla logów i końca gry
     engine.addListener(_onEngineUpdate);
   }
 
   void _onEngineUpdate() {
     if (!mounted) return;
-
-    // 1. Sprawdzanie końca gry
     if (engine.state.currentPhase == ResuscitationPhase.postResuscitation) {
-      engine.removeListener(_onEngineUpdate); // Zapobiega zapętleniu
+      engine.removeListener(_onEngineUpdate);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) =>
@@ -56,7 +53,6 @@ class _MainGameScreenState extends State<MainGameScreen> {
       return;
     }
 
-    // 2. Obsługa HUD logów
     if (engine.state.log.length > _lastLogCount) {
       String newLog = engine.state.log.first;
       String cleanLog = newLog.contains("]")
@@ -73,7 +69,6 @@ class _MainGameScreenState extends State<MainGameScreen> {
         if (mounted) setState(() => _hudLog = "");
       });
     } else {
-      // Odświeżenie UI dla timerów i innych zdarzeń
       setState(() {});
     }
   }
@@ -94,7 +89,6 @@ class _MainGameScreenState extends State<MainGameScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            // WARSTWA 1: Ekrany główne
             PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
@@ -107,7 +101,6 @@ class _MainGameScreenState extends State<MainGameScreen> {
               ],
             ),
 
-            // --- WARSTWA: GLOBALNY TIMER RKO ---
             if (engine.state.isCprActive)
               Positioned(
                 top: 50,
@@ -135,7 +128,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            "RKO: ${engine.state.cprSecondsRemaining} s",
+                            "${AppLoc.tr('RKO', 'CPR')}: ${engine.state.cprSecondsRemaining} s",
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 24,
@@ -149,7 +142,6 @@ class _MainGameScreenState extends State<MainGameScreen> {
                 ),
               ),
 
-            // --- WARSTWA: TACKA Z LEKAMI ---
             if (engine.state.preparedDrugs.isNotEmpty)
               Positioned(
                 bottom: 85,
@@ -158,9 +150,12 @@ class _MainGameScreenState extends State<MainGameScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      "TACKA - GOTOWE LEKI (Kliknij, aby podać):",
-                      style: TextStyle(
+                    Text(
+                      AppLoc.tr(
+                        "TACKA - GOTOWE LEKI (Kliknij, aby podać):",
+                        "TRAY - PREPARED DRUGS (Click to administer):",
+                      ),
+                      style: const TextStyle(
                         color: Colors.yellowAccent,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
@@ -209,7 +204,6 @@ class _MainGameScreenState extends State<MainGameScreen> {
                 ),
               ),
 
-            // WARSTWA 4: Inteligentna Nawigacja i Narzędzia
             Positioned(
               bottom: 20,
               left: 10,
@@ -221,7 +215,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
                         _buildOverlayButton(
                           icon: Icons.medical_services,
                           color: Colors.blue[900]!,
-                          label: "Ampularium",
+                          label: AppLoc.tr("Ampularium", "Meds"),
                           onPressed:
                               (engine.state.isPreparingDrug ||
                                   engine.state.preparedDrugs.length >= 2)
@@ -237,13 +231,13 @@ class _MainGameScreenState extends State<MainGameScreen> {
                         _buildOverlayButton(
                           icon: Icons.air,
                           color: Colors.cyan[800]!,
-                          label: "Oddech",
+                          label: AppLoc.tr("Oddech", "Airway"),
                           onPressed: () => engine.toggleAirwayMenu(),
                         ),
                         _buildOverlayButton(
                           icon: Icons.backpack,
                           color: Colors.orange[900]!,
-                          label: "Torba/Diag.",
+                          label: AppLoc.tr("Torba/Diag.", "Bag/Diag."),
                           onPressed: () => engine.toggleBag(),
                         ),
                         _buildOverlayButton(
@@ -276,7 +270,10 @@ class _MainGameScreenState extends State<MainGameScreen> {
                           child: _buildOverlayButton(
                             icon: Icons.person,
                             color: Colors.green[700]!,
-                            label: "WIDOK\nPACJENTA",
+                            label: AppLoc.tr(
+                              "WIDOK\nPACJENTA",
+                              "PATIENT\nVIEW",
+                            ),
                             onPressed: () => _pageController.animateToPage(
                               1,
                               duration: const Duration(milliseconds: 300),
@@ -288,14 +285,15 @@ class _MainGameScreenState extends State<MainGameScreen> {
                     ),
             ),
 
-            // --- WARSTWA: GLOBALNY HUD (POWIADOMIENIA EBM) ---
             Builder(
               builder: (context) {
                 bool isRoutineExamLog =
                     _hudLog.startsWith("BADANIE:") ||
+                    _hudLog.startsWith("EXAMINATION:") ||
                     _hudLog.startsWith("USG:") ||
                     _hudLog.startsWith("AKCJA: Założono") ||
-                    _hudLog.startsWith("DIAGNOZA");
+                    _hudLog.startsWith("DIAGNOZA") ||
+                    _hudLog.startsWith("DIAGNOSIS");
                 bool showHud =
                     _hudLog.isNotEmpty &&
                     !(_currentPage == 1 && isRoutineExamLog);
@@ -315,14 +313,16 @@ class _MainGameScreenState extends State<MainGameScreen> {
                           vertical: 12,
                         ),
                         decoration: BoxDecoration(
-                          color: _hudLog.contains("BŁĄD")
+                          color: _hudLog.contains(AppLoc.tr("BŁĄD", "ERROR"))
                               ? Colors.red[900]?.withOpacity(0.95)
-                              : (_hudLog.contains("SUKCES")
+                              : (_hudLog.contains(
+                                      AppLoc.tr("SUKCES", "SUCCESS"),
+                                    )
                                     ? Colors.green[900]?.withOpacity(0.95)
                                     : Colors.black87),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: _hudLog.contains("BŁĄD")
+                            color: _hudLog.contains(AppLoc.tr("BŁĄD", "ERROR"))
                                 ? Colors.redAccent
                                 : Colors.grey,
                             width: 2,
@@ -347,7 +347,6 @@ class _MainGameScreenState extends State<MainGameScreen> {
               },
             ),
 
-            // NAKŁADKA WYJŚCIA Z GRY
             Positioned(
               top: 10,
               right: 10,
@@ -366,29 +365,37 @@ class _MainGameScreenState extends State<MainGameScreen> {
                         builder: (BuildContext context) {
                           return AlertDialog(
                             backgroundColor: Colors.grey[900],
-                            title: const Row(
+                            title: Row(
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.warning_amber_rounded,
                                   color: Colors.redAccent,
                                 ),
-                                SizedBox(width: 10),
+                                const SizedBox(width: 10),
                                 Text(
-                                  "Przerwać akcję?",
-                                  style: TextStyle(color: Colors.redAccent),
+                                  AppLoc.tr(
+                                    "Przerwać akcję?",
+                                    "Abort mission?",
+                                  ),
+                                  style: const TextStyle(
+                                    color: Colors.redAccent,
+                                  ),
                                 ),
                               ],
                             ),
-                            content: const Text(
-                              "Czy na pewno chcesz porzucić pacjenta i wrócić do dyspozytorni? Akcja zostanie przerwana.",
-                              style: TextStyle(color: Colors.white70),
+                            content: Text(
+                              AppLoc.tr(
+                                "Czy na pewno chcesz porzucić pacjenta i wrócić do dyspozytorni? Akcja zostanie przerwana.",
+                                "Are you sure you want to abandon the patient and return to dispatch? The mission will be aborted.",
+                              ),
+                              style: const TextStyle(color: Colors.white70),
                             ),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.of(context).pop(),
-                                child: const Text(
-                                  "Zostań",
-                                  style: TextStyle(color: Colors.grey),
+                                child: Text(
+                                  AppLoc.tr("Zostań", "Stay"),
+                                  style: const TextStyle(color: Colors.grey),
                                 ),
                               ),
                               ElevatedButton(
@@ -404,9 +411,9 @@ class _MainGameScreenState extends State<MainGameScreen> {
                                     (route) => false,
                                   );
                                 },
-                                child: const Text(
-                                  "Zakończ Akcję",
-                                  style: TextStyle(color: Colors.white),
+                                child: Text(
+                                  AppLoc.tr("Zakończ Akcję", "End Mission"),
+                                  style: const TextStyle(color: Colors.white),
                                 ),
                               ),
                             ],

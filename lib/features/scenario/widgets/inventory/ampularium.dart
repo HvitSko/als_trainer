@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../app_localization.dart'; // IMPORT TŁUMACZA
 
 class DrugInfo {
   final String name;
@@ -20,7 +21,6 @@ class DrugInfo {
 
 class AmpulariumDialog extends StatefulWidget {
   final Function(String drug, String dose) onDrugPrepared;
-
   const AmpulariumDialog({super.key, required this.onDrugPrepared});
 
   @override
@@ -105,7 +105,6 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
       child: Container(
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.55,
-          // Dodane zabezpieczenie: Okienko nie może być wyższe niż 85% ekranu telefonu!
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         padding: const EdgeInsets.all(20),
@@ -120,16 +119,15 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
             ),
           ],
         ),
-        // MAGIA SKIPPY'EGO: Tu jest ten SingleChildScrollView, którego brakowało!
         child: SingleChildScrollView(
           child: Column(
-            mainAxisSize: MainAxisSize.min, // Ważne dla układu okna!
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                "AMPULARIUM ZRM",
+              Text(
+                AppLoc.tr("AMPULARIUM ZRM", "MEDICATION KIT"),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -140,9 +138,9 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
                 isExpanded: true,
                 dropdownColor: Colors.black87,
                 value: _selectedDrug,
-                hint: const Text(
-                  "Wybierz lek...",
-                  style: TextStyle(color: Colors.white54),
+                hint: Text(
+                  AppLoc.tr("Wybierz lek...", "Select drug..."),
+                  style: const TextStyle(color: Colors.white54),
                 ),
                 items: _drugs.map((drug) {
                   return DropdownMenuItem(
@@ -163,12 +161,11 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
               const SizedBox(height: 20),
 
               if (_selectedDrug != null) ...[
-                const Text(
-                  "2. Pobierz objętość:",
-                  style: TextStyle(color: Colors.grey),
+                Text(
+                  AppLoc.tr("2. Pobierz objętość:", "2. Draw volume:"),
+                  style: const TextStyle(color: Colors.grey),
                 ),
 
-                // --- PATCH EBM: Blokada wysypywania się Slidera dla stałych dawek! ---
                 if (_selectedDrug!.maxVolume > _selectedDrug!.step)
                   Slider(
                     value: _selectedVolume,
@@ -191,7 +188,7 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 15.0),
                     child: Text(
-                      "Lek jednodawkowy (${_selectedDrug!.maxVolume} ml)",
+                      "${AppLoc.tr('Lek jednodawkowy', 'Single-dose drug')} (${_selectedDrug!.maxVolume} ml)",
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.blueAccent,
@@ -202,7 +199,7 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
 
                 Center(
                   child: Text(
-                    "Zaciągnięto: ${_selectedVolume.toStringAsFixed(1)} ml\nDawka czynna: ${(_selectedVolume * _selectedDrug!.amountPerMl).toStringAsFixed(0)} ${_selectedDrug!.unit}",
+                    "${AppLoc.tr('Zaciągnięto:', 'Drawn:')} ${_selectedVolume.toStringAsFixed(1)} ml\n${AppLoc.tr('Dawka czynna:', 'Active dose:')} ${(_selectedVolume * _selectedDrug!.amountPerMl).toStringAsFixed(0)} ${_selectedDrug!.unit}",
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.yellow,
@@ -213,9 +210,12 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
                 ),
                 const SizedBox(height: 20),
 
-                const Text(
-                  "3. Popitka / Rozpuszczalnik:",
-                  style: TextStyle(color: Colors.grey),
+                Text(
+                  AppLoc.tr(
+                    "3. Popitka / Rozpuszczalnik:",
+                    "3. Flush / Diluent:",
+                  ),
+                  style: const TextStyle(color: Colors.grey),
                 ),
                 DropdownButton<String>(
                   dropdownColor: Colors.black87,
@@ -248,9 +248,9 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
                       ),
                     ),
                     icon: const Icon(Icons.vaccines, color: Colors.white),
-                    label: const Text(
-                      "PRZYGOTUJ STRZYKAWKĘ",
-                      style: TextStyle(
+                    label: Text(
+                      AppLoc.tr("PRZYGOTUJ STRZYKAWKĘ", "PREPARE SYRINGE"),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
@@ -266,9 +266,7 @@ class _AmpulariumDialogState extends State<AmpulariumDialog> {
                     },
                   ),
                 ),
-                const SizedBox(
-                  height: 10,
-                ), // Luz na dnie okienka, by ładnie wyglądało w scrollu
+                const SizedBox(height: 10),
               ],
             ],
           ),

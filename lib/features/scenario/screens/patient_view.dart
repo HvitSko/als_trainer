@@ -4,6 +4,7 @@ import '../widgets/inventory/intubation_minigame_dialog.dart';
 import '../widgets/inventory/iv_minigame_dialog.dart';
 import '../models/als_state.dart';
 import 'dart:async';
+import '../../../app_localization.dart'; // IMPORT TŁUMACZA
 
 class PatientView extends StatefulWidget {
   final GameEngine engine;
@@ -114,30 +115,39 @@ class _PatientViewState extends State<PatientView>
   String _getDynamicLabel(String baseTarget) {
     if (_equippedTool == null) return baseTarget;
     if (_equippedTool == "USG: Hokus POCUS") {
-      if (baseTarget.contains("Klatka")) return "USG: Opłucna";
-      if (baseTarget == "Bok Prawy") return "USG: Zachyłek Morisona";
-      if (baseTarget == "Bok Lewy") return "USG: Zachyłek Kellera";
-      if (baseTarget == "Nadbrzusze") return "USG: Serce";
-      if (baseTarget == "Podbrzusze") return "USG: Miednica";
+      if (baseTarget.contains("Klatka"))
+        return AppLoc.tr("USG: Opłucna", "USG: Pleura");
+      if (baseTarget == "Bok Prawy")
+        return AppLoc.tr("USG: Zachyłek Morisona", "USG: Morison's Pouch");
+      if (baseTarget == "Bok Lewy")
+        return AppLoc.tr("USG: Zachyłek Kellera", "USG: Keller's Pouch");
+      if (baseTarget == "Nadbrzusze")
+        return AppLoc.tr("USG: Serce", "USG: Heart");
+      if (baseTarget == "Podbrzusze")
+        return AppLoc.tr("USG: Miednica", "USG: Pelvis");
     } else if (_equippedTool == "Stetoskop") {
-      if (baseTarget == "Nadbrzusze") return "Osłuchaj: Żołądek";
-      if (baseTarget.contains("Bok")) return "Osłuchaj: Podstawy";
-      if (baseTarget.contains("Klatka")) return "Osłuchaj: Szczyty";
+      if (baseTarget == "Nadbrzusze")
+        return AppLoc.tr("Osłuchaj: Żołądek", "Auscultate: Stomach");
+      if (baseTarget.contains("Bok"))
+        return AppLoc.tr("Osłuchaj: Podstawy", "Auscultate: Bases");
+      if (baseTarget.contains("Klatka"))
+        return AppLoc.tr("Osłuchaj: Szczyty", "Auscultate: Apices");
     } else if (_equippedTool == "Glukometr" ||
         _equippedTool == "Pulsoksymetr") {
       if (baseTarget.contains("Dłoń") || baseTarget.contains("Stopa"))
-        return "Nakłuj / Klips";
+        return AppLoc.tr("Nakłuj / Klips", "Prick / Probe");
     } else if (_equippedTool == "Worek BVM" ||
         _equippedTool == "Rurka ETI" ||
         _equippedTool!.contains("I-gel") ||
         _equippedTool == "Ssak") {
-      if (baseTarget == "Głowa") return "ZABEZPIECZ DROGI";
+      if (baseTarget == "Głowa")
+        return AppLoc.tr("ZABEZPIECZ DROGI", "SECURE AIRWAY");
     } else if (_equippedTool == "Palec") {
       if (baseTarget.contains("Nadgarstek") ||
           baseTarget.contains("Stopa") ||
           baseTarget == "Szyja")
-        return "Sprawdź Tętno";
-      return "Omacaj";
+        return AppLoc.tr("Sprawdź Tętno", "Check Pulse");
+      return AppLoc.tr("Omacaj", "Palpate");
     }
     return baseTarget;
   }
@@ -457,12 +467,14 @@ class _PatientViewState extends State<PatientView>
                   "Oglądanie",
                   Icons.visibility,
                   Colors.purpleAccent,
+                  overrideLabel: AppLoc.tr("Oglądanie", "Inspection"),
                 ),
                 const SizedBox(height: 10),
                 _buildFloatingToolButton(
                   "Palec",
                   Icons.touch_app,
                   Colors.pinkAccent,
+                  overrideLabel: AppLoc.tr("Palec", "Palpate"),
                 ),
               ],
             ),
@@ -488,7 +500,7 @@ class _PatientViewState extends State<PatientView>
                           : Colors.grey,
                     ),
                     Text(
-                      "Odłóż",
+                      AppLoc.tr("Odłóż", "Drop"),
                       style: TextStyle(
                         color: candidate.isNotEmpty
                             ? Colors.orangeAccent
@@ -521,9 +533,9 @@ class _PatientViewState extends State<PatientView>
                         size: 60,
                         color: Colors.greenAccent,
                       ),
-                      const Text(
-                        "Przeciągasz...",
-                        style: TextStyle(color: Colors.grey),
+                      Text(
+                        AppLoc.tr("Przeciągasz...", "Dragging..."),
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     ],
                   ),
@@ -536,7 +548,7 @@ class _PatientViewState extends State<PatientView>
                       color: Colors.greenAccent,
                     ),
                     Text(
-                      "W RĘKU:\n$_equippedTool",
+                      "${AppLoc.tr('W RĘKU:\n', 'IN HAND:\n')}$_equippedTool",
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
@@ -576,11 +588,11 @@ class _PatientViewState extends State<PatientView>
                         icon: const Icon(Icons.arrow_back, color: Colors.white),
                         onPressed: () => setState(() => _showIvMenu = false),
                       ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
                         child: Text(
-                          "WYBIERZ ROZMIAR: ",
-                          style: TextStyle(
+                          AppLoc.tr("WYBIERZ ROZMIAR: ", "SELECT SIZE: "),
+                          style: const TextStyle(
                             color: Colors.orange,
                             fontWeight: FontWeight.bold,
                           ),
@@ -589,44 +601,88 @@ class _PatientViewState extends State<PatientView>
                       _buildToolEquipButton(
                         "Kaniula 14G (Pomarańczowa)",
                         Icons.colorize,
+                        overrideLabel: AppLoc.tr(
+                          "Kaniula 14G (Pomarańczowa)",
+                          "14G IV (Orange)",
+                        ),
                       ),
                       _buildToolEquipButton(
                         "Kaniula 18G (Zielona)",
                         Icons.colorize,
+                        overrideLabel: AppLoc.tr(
+                          "Kaniula 18G (Zielona)",
+                          "18G IV (Green)",
+                        ),
                       ),
                       _buildToolEquipButton(
                         "Kaniula 20G (Różowa)",
                         Icons.colorize,
+                        overrideLabel: AppLoc.tr(
+                          "Kaniula 20G (Różowa)",
+                          "20G IV (Pink)",
+                        ),
                       ),
                     ],
                   )
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
                         child: Text(
-                          "TORBA: ",
-                          style: TextStyle(
+                          AppLoc.tr("TORBA: ", "BAG: "),
+                          style: const TextStyle(
                             color: Colors.orange,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                      _buildToolEquipButton("Latarka", Icons.highlight),
-                      _buildToolEquipButton("Ssak", Icons.water_drop),
+                      _buildToolEquipButton(
+                        "Latarka",
+                        Icons.highlight,
+                        overrideLabel: AppLoc.tr("Latarka", "Penlight"),
+                      ),
+                      _buildToolEquipButton(
+                        "Ssak",
+                        Icons.water_drop,
+                        overrideLabel: AppLoc.tr("Ssak", "Suction"),
+                      ),
                       _buildToolEquipButton(
                         "Stetoskop",
                         Icons.medical_services,
+                        overrideLabel: AppLoc.tr("Stetoskop", "Stethoscope"),
                       ),
-                      _buildToolEquipButton("Termometr", Icons.thermostat),
-                      _buildToolEquipButton("Glukometr", Icons.bloodtype),
+                      _buildToolEquipButton(
+                        "Termometr",
+                        Icons.thermostat,
+                        overrideLabel: AppLoc.tr("Termometr", "Thermometer"),
+                      ),
+                      _buildToolEquipButton(
+                        "Glukometr",
+                        Icons.bloodtype,
+                        overrideLabel: AppLoc.tr("Glukometr", "Glucometer"),
+                      ),
                       _buildToolEquipButton(
                         "Pulsoksymetr",
                         Icons.monitor_heart,
+                        overrideLabel: AppLoc.tr(
+                          "Pulsoksymetr",
+                          "Pulse Oximeter",
+                        ),
                       ),
-                      _buildToolEquipButton("USG: Hokus POCUS", Icons.waves),
-                      _buildToolEquipButton("Folia NRC", Icons.ac_unit),
+                      _buildToolEquipButton(
+                        "USG: Hokus POCUS",
+                        Icons.waves,
+                        overrideLabel: AppLoc.tr(
+                          "USG: Hokus POCUS",
+                          "USG: POCUS",
+                        ),
+                      ),
+                      _buildToolEquipButton(
+                        "Folia NRC",
+                        Icons.ac_unit,
+                        overrideLabel: AppLoc.tr("Folia NRC", "Foil Blanket"),
+                      ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4.0),
                         child: Column(
@@ -641,9 +697,12 @@ class _PatientViewState extends State<PatientView>
                               onPressed: () =>
                                   setState(() => _showIvMenu = true),
                             ),
-                            const Text(
-                              "Kaniula IV",
-                              style: TextStyle(color: Colors.grey, fontSize: 9),
+                            Text(
+                              AppLoc.tr("Kaniula IV", "IV Cannula"),
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 9,
+                              ),
                             ),
                           ],
                         ),
@@ -683,16 +742,18 @@ class _PatientViewState extends State<PatientView>
                       backgroundColor: Colors.blue[900],
                     ),
                     onPressed: widget.engine.performManualAirwayManeuver,
-                    child: const Text("Udrożnij drogi oddechowe"),
+                    child: Text(
+                      AppLoc.tr("Udrożnij drogi oddechowe", "Open Airway"),
+                    ),
                   ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.lightBlue[700],
                     ),
                     onPressed: widget.engine.preoxygenate,
-                    child: const Text(
-                      "Preoksygenacja",
-                      style: TextStyle(color: Colors.white),
+                    child: Text(
+                      AppLoc.tr("Preoksygenacja", "Preoxygenation"),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                   ElevatedButton(
@@ -703,9 +764,9 @@ class _PatientViewState extends State<PatientView>
                       widget.engine.state.isCapnographyAttached = true;
                       widget.engine.closeMenus();
                     },
-                    child: const Text(
-                      "Podłącz ETCO2",
-                      style: TextStyle(
+                    child: Text(
+                      AppLoc.tr("Podłącz ETCO2", "Attach ETCO2"),
+                      style: const TextStyle(
                         color: Colors.black,
                         fontWeight: FontWeight.bold,
                       ),
@@ -754,11 +815,13 @@ class _PatientViewState extends State<PatientView>
                             onPressed: () =>
                                 setState(() => _showIgelMenu = false),
                           ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                            ),
                             child: Text(
-                              "WYBIERZ ROZMIAR: ",
-                              style: TextStyle(
+                              AppLoc.tr("WYBIERZ ROZMIAR: ", "SELECT SIZE: "),
+                              style: const TextStyle(
                                 color: Colors.cyan,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -772,17 +835,23 @@ class _PatientViewState extends State<PatientView>
                     : Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                            ),
                             child: Text(
-                              "SPRZĘT: ",
-                              style: TextStyle(
+                              AppLoc.tr("SPRZĘT: ", "EQUIPMENT: "),
+                              style: const TextStyle(
                                 color: Colors.cyan,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                          _buildToolEquipButton("Worek BVM", Icons.masks),
+                          _buildToolEquipButton(
+                            "Worek BVM",
+                            Icons.masks,
+                            overrideLabel: AppLoc.tr("Worek BVM", "BVM"),
+                          ),
                           Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 4.0,
@@ -799,9 +868,9 @@ class _PatientViewState extends State<PatientView>
                                   onPressed: () =>
                                       setState(() => _showIgelMenu = true),
                                 ),
-                                const Text(
-                                  "I-gel (SGA)",
-                                  style: TextStyle(
+                                Text(
+                                  AppLoc.tr("I-gel (SGA)", "I-gel (SGA)"),
+                                  style: const TextStyle(
                                     color: Colors.grey,
                                     fontSize: 9,
                                   ),
@@ -809,7 +878,11 @@ class _PatientViewState extends State<PatientView>
                               ],
                             ),
                           ),
-                          _buildToolEquipButton("Rurka ETI", Icons.straighten),
+                          _buildToolEquipButton(
+                            "Rurka ETI",
+                            Icons.straighten,
+                            overrideLabel: AppLoc.tr("Rurka ETI", "ET Tube"),
+                          ),
                         ],
                       ),
               ),
@@ -820,7 +893,11 @@ class _PatientViewState extends State<PatientView>
     );
   }
 
-  Widget _buildToolEquipButton(String name, IconData icon) {
+  Widget _buildToolEquipButton(
+    String name,
+    IconData icon, {
+    String? overrideLabel,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0),
       child: Column(
@@ -828,7 +905,10 @@ class _PatientViewState extends State<PatientView>
         children: [
           IconButton(
             icon: Icon(icon, color: Colors.white, size: 28),
-            tooltip: "Wyciągnij: $name",
+            tooltip: AppLoc.tr(
+              "Wyciągnij: $name",
+              "Equip: ${overrideLabel ?? name}",
+            ),
             onPressed: () {
               setState(() {
                 _equippedTool = name;
@@ -836,7 +916,10 @@ class _PatientViewState extends State<PatientView>
               });
             },
           ),
-          Text(name, style: const TextStyle(color: Colors.grey, fontSize: 9)),
+          Text(
+            overrideLabel ?? name,
+            style: const TextStyle(color: Colors.grey, fontSize: 9),
+          ),
         ],
       ),
     );
@@ -900,7 +983,12 @@ class _PatientViewState extends State<PatientView>
     );
   }
 
-  Widget _buildFloatingToolButton(String name, IconData icon, Color color) {
+  Widget _buildFloatingToolButton(
+    String name,
+    IconData icon,
+    Color color, {
+    String? overrideLabel,
+  }) {
     bool isActive = _equippedTool == name;
     return FloatingActionButton(
       heroTag: name,

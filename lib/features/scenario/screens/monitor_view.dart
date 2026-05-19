@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../logic/game_engine.dart';
 import '../models/als_state.dart';
+import '../../../app_localization.dart'; // IMPORT TŁUMACZA
 
 class MonitorView extends StatefulWidget {
   final GameEngine engine;
@@ -44,7 +45,7 @@ class _MonitorViewState extends State<MonitorView>
     if (_isMeasuringNibp || !widget.engine.state.isMonitorOn) return;
     setState(() {
       _isMeasuringNibp = true;
-      _nibpValue = "Pomiar...";
+      _nibpValue = AppLoc.tr("Pomiar...", "Measuring...");
     });
     await Future.delayed(const Duration(seconds: 5));
     if (!mounted) return;
@@ -73,10 +74,10 @@ class _MonitorViewState extends State<MonitorView>
                 borderRadius: BorderRadius.circular(10),
                 side: const BorderSide(color: Colors.grey),
               ),
-              title: const Text(
-                "WYBÓR ENERGII",
+              title: Text(
+                AppLoc.tr("WYBÓR ENERGII", "ENERGY SELECTION"),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -140,10 +141,16 @@ class _MonitorViewState extends State<MonitorView>
                         fontFamily: 'monospace',
                       ),
                     ),
-                    const Text(
-                      "Wykonaj okrężny ruch palcem wokół pokrętła",
+                    Text(
+                      AppLoc.tr(
+                        "Wykonaj okrężny ruch palcem wokół pokrętła",
+                        "Make a circular motion around the dial",
+                      ),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white54, fontSize: 10),
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 10,
+                      ),
                     ),
                   ],
                 ),
@@ -157,9 +164,9 @@ class _MonitorViewState extends State<MonitorView>
                     widget.engine.setEnergy(_selectedEnergy.toInt());
                     Navigator.of(context).pop();
                   },
-                  child: const Text(
-                    "ZATWIERDŹ",
-                    style: TextStyle(color: Colors.white),
+                  child: Text(
+                    AppLoc.tr("ZATWIERDŹ", "CONFIRM"),
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ),
               ],
@@ -183,10 +190,10 @@ class _MonitorViewState extends State<MonitorView>
             borderRadius: BorderRadius.circular(10),
             side: const BorderSide(color: Colors.blueAccent),
           ),
-          title: const Text(
-            "CECHA ZAPISU (GAIN)",
+          title: Text(
+            AppLoc.tr("CECHA ZAPISU (GAIN)", "ECG GAIN"),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -203,7 +210,7 @@ class _MonitorViewState extends State<MonitorView>
                 bool isCurrent = widget.engine.state.ecgGain == gain;
                 return ListTile(
                   title: Text(
-                    "Cech x$gain ${gain == 1.0 ? '(Norma)' : ''}",
+                    "${AppLoc.tr('Cech x', 'Gain x')}$gain ${gain == 1.0 ? AppLoc.tr('(Norma)', '(Normal)') : ''}",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: isCurrent ? Colors.blueAccent : Colors.white,
@@ -253,31 +260,31 @@ class _MonitorViewState extends State<MonitorView>
                         const SizedBox(height: 10),
                         _buildSideButton(
                           Icons.monitor_heart,
-                          "12-ODPR\nEKG",
+                          AppLoc.tr("12-ODPR\nEKG", "12-LEAD\nECG"),
                           Colors.green[900]!,
                           () {},
                         ),
                         _buildSideButton(
                           Icons.wifi,
-                          "TRANSMITUJ",
+                          AppLoc.tr("TRANSMITUJ", "TRANSMIT"),
                           Colors.grey[800]!,
                           () {},
                         ),
                         _buildSideButton(
                           Icons.save,
-                          "ZAPIS\nZDARZEŃ",
+                          AppLoc.tr("ZAPIS\nZDARZEŃ", "EVENT\nLOG"),
                           Colors.grey[800]!,
                           () {},
                         ),
                         _buildSideButton(
                           Icons.print,
-                          "DRUKUJ",
+                          AppLoc.tr("DRUKUJ", "PRINT"),
                           Colors.grey[800]!,
                           () {},
                         ),
                         _buildSideButton(
                           Icons.settings,
-                          "OPCJE",
+                          AppLoc.tr("OPCJE", "OPTIONS"),
                           Colors.grey[800]!,
                           () {},
                         ),
@@ -298,10 +305,10 @@ class _MonitorViewState extends State<MonitorView>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: !isMonitorOn
-                        ? const Center(
+                        ? Center(
                             child: Text(
-                              "MONITOR WYŁĄCZONY",
-                              style: TextStyle(
+                              AppLoc.tr("MONITOR WYŁĄCZONY", "MONITOR OFF"),
+                              style: const TextStyle(
                                 color: Colors.white12,
                                 fontSize: 30,
                                 fontWeight: FontWeight.bold,
@@ -310,7 +317,6 @@ class _MonitorViewState extends State<MonitorView>
                           )
                         : Column(
                             children: [
-                              // DYSKRETNY PASEK CZASU
                               Container(
                                 height: 20,
                                 color: Colors.black,
@@ -321,15 +327,18 @@ class _MonitorViewState extends State<MonitorView>
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text(
-                                      "TRYB DIAGNOSTYCZNY",
-                                      style: TextStyle(
+                                    Text(
+                                      AppLoc.tr(
+                                        "TRYB DIAGNOSTYCZNY",
+                                        "DIAGNOSTIC MODE",
+                                      ),
+                                      style: const TextStyle(
                                         color: Colors.white38,
                                         fontSize: 10,
                                       ),
                                     ),
                                     Text(
-                                      "CZAS AKCJI: ${(state.totalElapsedGameTime ~/ 60).toString().padLeft(2, '0')}:${(state.totalElapsedGameTime % 60).toString().padLeft(2, '0')}",
+                                      "${AppLoc.tr('CZAS AKCJI:', 'ELAPSED TIME:')} ${(state.totalElapsedGameTime ~/ 60).toString().padLeft(2, '0')}:${(state.totalElapsedGameTime % 60).toString().padLeft(2, '0')}",
                                       style: const TextStyle(
                                         color: Colors.white54,
                                         fontSize: 12,
@@ -339,7 +348,6 @@ class _MonitorViewState extends State<MonitorView>
                                   ],
                                 ),
                               ),
-                              // GŁÓWNY WIDOK MONITORA
                               Expanded(
                                 child: Row(
                                   children: [
@@ -422,7 +430,10 @@ class _MonitorViewState extends State<MonitorView>
                                                   left: 10,
                                                   child: Text(
                                                     state.isCprActive
-                                                        ? "RKO ARTEFAKTY"
+                                                        ? AppLoc.tr(
+                                                            "RKO ARTEFAKTY",
+                                                            "CPR ARTIFACTS",
+                                                          )
                                                         : "II x${state.ecgGain.toStringAsFixed(2)}",
                                                     style: TextStyle(
                                                       color: state.isCprActive
@@ -529,7 +540,7 @@ class _MonitorViewState extends State<MonitorView>
                         const SizedBox(height: 10),
                         _buildSideButton(
                           Icons.power_settings_new,
-                          "WŁĄCZ",
+                          AppLoc.tr("WŁĄCZ", "POWER"),
                           isMonitorOn ? Colors.green[800]! : Colors.grey[800]!,
                           () => widget.engine.toggleMonitor(),
                         ),
@@ -538,7 +549,9 @@ class _MonitorViewState extends State<MonitorView>
                           state.isCprActive
                               ? Icons.stop_circle
                               : Icons.favorite,
-                          state.isCprActive ? "STOP\nRKO" : "START\nRKO",
+                          state.isCprActive
+                              ? AppLoc.tr("STOP\nRKO", "STOP\nCPR")
+                              : AppLoc.tr("START\nRKO", "START\nCPR"),
                           state.isCprActive
                               ? Colors.orange[900]!
                               : Colors.green[700]!,
@@ -551,13 +564,13 @@ class _MonitorViewState extends State<MonitorView>
                         ),
                         _buildSideButton(
                           Icons.dialpad,
-                          "1 ENERGIA\n${_selectedEnergy.toInt()}J",
+                          "${AppLoc.tr('1 ENERGIA\n', '1 ENERGY\n')}${_selectedEnergy.toInt()}J",
                           Colors.grey[800]!,
                           _showEnergySelector,
                         ),
                         _buildSideButton(
                           Icons.battery_charging_full,
-                          "2 ŁADUJ",
+                          AppLoc.tr("2 ŁADUJ", "2 CHARGE"),
                           state.isDefibCharging
                               ? Colors.yellow[900]!
                               : Colors.yellow[700]!,
@@ -603,9 +616,9 @@ class _MonitorViewState extends State<MonitorView>
                             ),
                           ),
                         ),
-                        const Text(
-                          "3 DEFIBRYLACJA",
-                          style: TextStyle(
+                        Text(
+                          AppLoc.tr("3 DEFIBRYLACJA", "3 SHOCK"),
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
@@ -614,7 +627,7 @@ class _MonitorViewState extends State<MonitorView>
                         const Divider(color: Colors.black, thickness: 2),
                         _buildSideButton(
                           Icons.waves,
-                          "CECHA\nx${state.ecgGain}",
+                          "${AppLoc.tr('CECHA\n', 'GAIN\n')}x${state.ecgGain}",
                           state.isAsystoleConfirmed
                               ? Colors.blue[800]!
                               : Colors.blueGrey[800]!,
@@ -622,19 +635,19 @@ class _MonitorViewState extends State<MonitorView>
                         ),
                         _buildSideButton(
                           Icons.sync,
-                          "SYNC",
+                          AppLoc.tr("SYNC", "SYNC"),
                           Colors.grey[800]!,
                           () {},
                         ),
                         _buildSideButton(
                           Icons.compress,
-                          "NIBP\nSTART",
+                          AppLoc.tr("NIBP\nSTART", "NIBP\nSTART"),
                           Colors.blueGrey[700]!,
                           _measureNibp,
                         ),
                         _buildSideButton(
                           Icons.bolt_outlined,
-                          "STYMULATOR",
+                          AppLoc.tr("STYMULATOR", "PACER"),
                           Colors.grey[800]!,
                           () {},
                         ),
