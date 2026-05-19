@@ -3,6 +3,7 @@ import '../models/scenario_database.dart';
 import '../models/scenario_model.dart';
 import 'main_game_screen.dart';
 import '../models/als_state.dart';
+import '../../../app_localization.dart'; // IMPORT TŁUMACZA
 
 class ScenarioIntroScreen extends StatefulWidget {
   const ScenarioIntroScreen({super.key});
@@ -13,7 +14,7 @@ class ScenarioIntroScreen extends StatefulWidget {
 
 class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
   late Scenario _currentScenario;
-  GameMode _selectedMode = GameMode.practice; // NOWA ZMIENNA
+  GameMode _selectedMode = GameMode.practice;
 
   @override
   void initState() {
@@ -24,13 +25,11 @@ class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Lub taki jaki masz
-      // ... (jeśli masz tu AppBar, to lepiej go wywal w trybie poziomym)
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Center(
-          // MAGIA SKIPPY'EGO: Tę linijkę musisz dodać!
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0), // Marginesy dla estetyki
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -38,7 +37,10 @@ class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
                 const Icon(Icons.emergency, color: Colors.redAccent, size: 80),
                 const SizedBox(height: 20),
                 Text(
-                  "KARTA ZLECENIA WYJAZDU ZRM",
+                  AppLoc.tr(
+                    "KARTA ZLECENIA WYJAZDU ZRM",
+                    "EMS DISPATCH RECORD",
+                  ),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.red[400],
@@ -50,29 +52,40 @@ class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
                 const Divider(color: Colors.grey, height: 40),
 
                 _buildInfoBlock(
-                  "PRIORYTET WEZWANIA:",
-                  "KOD 1 (Zagrożenie Życia / Kardiologiczne)",
+                  AppLoc.tr("PRIORYTET WEZWANIA:", "DISPATCH PRIORITY:"),
+                  AppLoc.tr(
+                    "KOD 1 (Zagrożenie Życia / Kardiologiczne)",
+                    "CODE 1 (Life Threat / Cardiac Arrest)",
+                  ),
                   Colors.redAccent,
                 ),
                 _buildInfoBlock(
-                  "DYSPOZYTORNIA MEDYCZNA:",
-                  _currentScenario.dispatchInfo,
+                  AppLoc.tr(
+                    "DYSPOZYTORNIA MEDYCZNA:",
+                    "MEDICAL DISPATCH CENTER:",
+                  ),
+                  _currentScenario
+                      .dispatchInfo, // Przetłumaczymy to w bazie danych
                   Colors.white,
                 ),
                 _buildInfoBlock(
-                  "ROZPOZNANIE MIEJSCA (SCENE SIZE-UP):",
-                  _currentScenario.sceneSizeUp,
+                  AppLoc.tr(
+                    "ROZPOZNANIE MIEJSCA (SCENE SIZE-UP):",
+                    "SCENE SIZE-UP:",
+                  ),
+                  _currentScenario
+                      .sceneSizeUp, // Przetłumaczymy to w bazie danych
                   Colors.cyanAccent,
                 ),
 
-                const SizedBox(
-                  height: 40,
-                ), // Sztywny, bezpieczny odstęp, z którym Flutter sobie poradzi
-                // --- NOWY BLOK WYBORU TRYBU ---
-                const Text(
-                  "WYBIERZ TRYB SYMULACJI:",
+                const SizedBox(height: 40),
+                Text(
+                  AppLoc.tr(
+                    "WYBIERZ TRYB SYMULACJI:",
+                    "SELECT SIMULATION MODE:",
+                  ),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.grey,
                     fontWeight: FontWeight.bold,
                   ),
@@ -84,14 +97,24 @@ class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
                     selectedForegroundColor: Colors.white,
                     selectedBackgroundColor: Colors.blue[800],
                   ),
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: GameMode.practice,
-                      label: Text("Przećwicz (Instruktor EBM)"),
+                      label: Text(
+                        AppLoc.tr(
+                          "Przećwicz (Instruktor EBM)",
+                          "Practice (EBM Instructor)",
+                        ),
+                      ),
                     ),
                     ButtonSegment(
                       value: GameMode.test,
-                      label: Text("Sprawdź się (Test/Egzamin)"),
+                      label: Text(
+                        AppLoc.tr(
+                          "Sprawdź się (Egzamin)",
+                          "Test Yourself (Exam)",
+                        ),
+                      ),
                     ),
                   ],
                   selected: {_selectedMode},
@@ -109,7 +132,6 @@ class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
                   onPressed: () {
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
-                        // PRZEKAZUJEMY TRYB GRY!
                         builder: (context) => MainGameScreen(
                           scenario: _currentScenario,
                           mode: _selectedMode,
@@ -117,9 +139,15 @@ class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
                       ),
                     );
                   },
-                  child: const Text(
-                    "ROZPOCZNIJ MEDYCZNE CZYNNOŚCI RATUNKOWE",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  child: Text(
+                    AppLoc.tr(
+                      "ROZPOCZNIJ MEDYCZNE CZYNNOŚCI RATUNKOWE",
+                      "COMMENCE MEDICAL RESCUE OPERATIONS",
+                    ),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
