@@ -291,9 +291,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
                     _hudLog.startsWith("BADANIE:") ||
                     _hudLog.startsWith("EXAMINATION:") ||
                     _hudLog.startsWith("USG:") ||
-                    _hudLog.startsWith("AKCJA: Założono") ||
-                    _hudLog.startsWith("DIAGNOZA") ||
-                    _hudLog.startsWith("DIAGNOSIS");
+                    _hudLog.startsWith("AKCJA: Założono");
                 bool showHud =
                     _hudLog.isNotEmpty &&
                     !(_currentPage == 1 && isRoutineExamLog);

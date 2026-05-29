@@ -204,12 +204,23 @@ class GameEngine extends ChangeNotifier {
     state.isCprActive = false;
     state.cprCyclesCompleted++;
     state.currentPhase = ResuscitationPhase.analyzing;
-    _logEvent(
-      AppLoc.tr(
-        "AKCJA: RKO zatrzymane. Analiza EKG...",
-        "ACTION: CPR paused. ECG analysis...",
-      ),
-    );
+
+    if (state.isMonitorOn) {
+      _logEvent(
+        AppLoc.tr(
+          "AKCJA: RKO zatrzymane. Analiza EKG...",
+          "ACTION: CPR paused. ECG analysis...",
+        ),
+      );
+    } else {
+      _logEvent(
+        AppLoc.tr(
+          "AKCJA: RKO zatrzymane. Kardiomonitor jest wyłączony - brak możliwości oceny rytmu!",
+          "ACTION: CPR paused. Cardiac monitor is OFF - unable to assess rhythm!",
+        ),
+      );
+    }
+
     notifyListeners();
     await Future.delayed(const Duration(seconds: 3));
 
@@ -275,18 +286,22 @@ class GameEngine extends ChangeNotifier {
     }
 
     int rand = Random().nextInt(100);
-    if (rand < 20)
+    if (rand < 20) {
       state.monitorRhythm = state.monitorRhythm == PatientRhythm.vf
           ? PatientRhythm.asystole
           : PatientRhythm.vf;
+    }
 
     state.currentPhase = ResuscitationPhase.rhythmCheck;
-    _logEvent(
-      AppLoc.tr(
-        "DIAGNOZA: Aktualny rytm to ${state.monitorRhythm.name.toUpperCase()}",
-        "DIAGNOSIS: Current rhythm is ${state.monitorRhythm.name.toUpperCase()}.",
-      ),
-    );
+
+    if (state.isMonitorOn) {
+      _logEvent(
+        AppLoc.tr(
+          "DIAGNOZA: Aktualny rytm to ${state.monitorRhythm.name.toUpperCase()}",
+          "DIAGNOSIS: Current rhythm is ${state.monitorRhythm.name.toUpperCase()}.",
+        ),
+      );
+    }
     notifyListeners();
   }
 
@@ -304,7 +319,15 @@ class GameEngine extends ChangeNotifier {
               log.contains(AppLoc.tr("Palec - Nadgarstek", "Finger - Wrist")),
         );
 
-    if (state.totalCprSeconds == 0 && !pulseCheckedRecently) {
+    // NOWE: Czy tętno było zbadane kiedykolwiek (na starcie)?
+    bool pulseCheckedEver = state.auditLog.any(
+      (log) =>
+          log.contains(AppLoc.tr("Palec - Szyja", "Finger - Neck")) ||
+          log.contains(AppLoc.tr("Palec - Nadgarstek", "Finger - Wrist")),
+    );
+
+    // Błąd wystąpi w 1szym cyklu tylko jeśli NIGDY nie sprawdził tętna
+    if (state.totalCprSeconds == 0 && !pulseCheckedEver) {
       state.criticalErrorsCount++;
       _logEvent(
         AppLoc.tr(
@@ -709,10 +732,16 @@ class GameEngine extends ChangeNotifier {
   void openAirway() {
     if (state.airwayStatus != AirwayType.none) return;
     state.airwayStatus = AirwayType.basic;
+
+    // NOWE: Sprawdzamy czy ma tętno (w NZK nie ma, więc nie oddycha)
+    String breathMsg = state.patient.hasPulse
+        ? AppLoc.tr("Pacjent oddycha.", "Patient is breathing.")
+        : AppLoc.tr("BRAK PRAWIDŁOWEGO ODDECHU!", "NO NORMAL BREATHING!");
+
     _logEvent(
       AppLoc.tr(
-        "AKCJA: Udrożniono drogi oddechowe (rękoczyn czoło-żuchwa).",
-        "ACTION: Airway opened (head tilt-chin lift maneuver).",
+        "AKCJA: Udrożniono drogi oddechowe (rękoczyn czoło-żuchwa). $breathMsg",
+        "ACTION: Airway opened (head tilt-chin lift maneuver). $breathMsg",
       ),
     );
     notifyListeners();
@@ -746,6 +775,17 @@ class GameEngine extends ChangeNotifier {
   }
 
   void setupBVM() {
+    if (state.patient.hiddenCause == ReversibleCause.hypoxia &&
+        !state.isAirwayCleared) {
+      _logEvent(
+        AppLoc.tr(
+          "KRYTYCZNY BŁĄD EBM: Próba wentylacji zanieczyszczonych dróg oddechowych! Użyj ssaka przed nałożeniem maski BVM!",
+          "EBM CRITICAL ERROR: Attempted ventilation of obstructed airway! Use suction before applying BVM!",
+        ),
+        isError: true,
+      );
+      return;
+    }
     state.airwayStatus = AirwayType.bvm;
     _logEvent(
       AppLoc.tr(
@@ -829,6 +869,17 @@ class GameEngine extends ChangeNotifier {
   }
 
   Future<void> attemptIntubation() async {
+    if (state.patient.hiddenCause == ReversibleCause.hypoxia &&
+        !state.isAirwayCleared) {
+      _logEvent(
+        AppLoc.tr(
+          "KRYTYCZNY BŁĄD EBM: Laryngoskopia w zanieczyszczonych drogach! Brak widoczności strun głosowych, użyj ssaka!",
+          "EBM CRITICAL ERROR: Laryngoscopy in obstructed airway! No vocal cord visibility, use suction!",
+        ),
+        isError: true,
+      );
+      return;
+    }
     if (state.intubationAttemptInProgress) return;
     state.intubationAttemptInProgress = true;
     _logEvent(
@@ -861,6 +912,17 @@ class GameEngine extends ChangeNotifier {
   }
 
   void startIntubationMinigame() {
+    if (state.patient.hiddenCause == ReversibleCause.hypoxia &&
+        !state.isAirwayCleared) {
+      _logEvent(
+        AppLoc.tr(
+          "KRYTYCZNY BŁĄD EBM: Laryngoskopia w zanieczyszczonych drogach! Brak widoczności strun głosowych, użyj ssaka!",
+          "EBM CRITICAL ERROR: Laryngoscopy in obstructed airway! No vocal cord visibility, use suction!",
+        ),
+        isError: true,
+      );
+      return;
+    }
     if (state.intubationAttemptInProgress) return;
     state.intubationAttemptInProgress = true;
     _logEvent(
@@ -1638,6 +1700,20 @@ class GameEngine extends ChangeNotifier {
         );
       }
     } else if (tool == "Worek BVM" && target == "Głowa") {
+      if (state.patient.hiddenCause == ReversibleCause.hypoxia &&
+          !state.isAirwayCleared) {
+        _logEvent(
+          AppLoc.tr(
+            "KRYTYCZNY BŁĄD EBM: Próba wentylacji zanieczyszczonych dróg (ciało obce/wydzielina)! Użyj ssaka!",
+            "EBM CRITICAL ERROR: Attempted ventilation with obstructed airway! Use suction!",
+          ),
+          isError: true,
+        );
+        return AppLoc.tr(
+          "Opór na worku! Użyj ssaka.",
+          "BVM resistance! Use suction.",
+        );
+      }
       state.airwayStatus = AirwayType.bvm;
       _logEvent(
         AppLoc.tr(
@@ -1651,6 +1727,17 @@ class GameEngine extends ChangeNotifier {
         "BVM:\nVentilation in progress",
       );
     } else if (tool.startsWith("I-gel") && target == "Głowa") {
+      if (state.patient.hiddenCause == ReversibleCause.hypoxia &&
+          !state.isAirwayCleared) {
+        _logEvent(
+          AppLoc.tr(
+            "KRYTYCZNY BŁĄD EBM: Próba założenia I-gel do zanieczyszczonych dróg oddechowych! Użyj ssaka!",
+            "EBM CRITICAL ERROR: Attempted to insert I-gel into obstructed airway! Use suction!",
+          ),
+          isError: true,
+        );
+        return AppLoc.tr("Drogi zablokowane!", "Airway blocked!");
+      }
       int size = int.parse(tool.split("#")[1]);
       double weight = state.patient.weight;
       bool isCorrect =
@@ -1744,20 +1831,23 @@ class GameEngine extends ChangeNotifier {
       ),
     );
     notifyListeners();
-    await Future.delayed(const Duration(seconds: 3));
+
+    // Zmniejszone opóźnienie z 3 sekund do zaledwie 500ms, aby komunikat był natychmiastowy
+    await Future.delayed(const Duration(milliseconds: 500));
+
     if (!state.patient.hasPulse) {
       _logEvent(
         AppLoc.tr(
-          "DIAGNOZA: Po udrożnieniu -> BRAK SAMODZIELNEGO ODDECHU.",
-          "DIAGNOSIS: After opening airway -> NO SPONTANEOUS BREATHING.",
+          "DIAGNOZA: Oceniono oddech -> BRAK PRAWIDŁOWEGO ODDECHU!",
+          "DIAGNOSIS: Breathing assessed -> NO NORMAL BREATHING!",
         ),
-        isError: true,
+        isError: true, // Wymusza czerwony/ostrzegawczy kolor w UI!
       );
     } else {
       _logEvent(
         AppLoc.tr(
-          "DIAGNOZA: Po udrożnieniu -> Pacjent oddycha.",
-          "DIAGNOSIS: After opening airway -> Patient is breathing.",
+          "DIAGNOZA: Oceniono oddech -> Pacjent oddycha prawidłowo.",
+          "DIAGNOSIS: Breathing assessed -> Patient is breathing normally.",
         ),
       );
     }
@@ -1966,7 +2056,11 @@ class GameEngine extends ChangeNotifier {
         "[${_formatTime(state.totalElapsedGameTime)}] $message";
     state.auditLog.insert(0, formattedMsg);
 
-    if (isError) {
+    // SKIPPY FIX: Diagnoza (brak oddechu/tętna) to nie jest błąd gracza, nawet jeśli w UI ma się świecić na czerwono!
+    bool isDiagnosis =
+        message.contains("DIAGNOZA") || message.contains("DIAGNOSIS");
+
+    if (isError && !isDiagnosis) {
       if (message.contains(AppLoc.tr("KRYTYCZNY", "CRITICAL")))
         state.criticalErrorsCount++;
       else

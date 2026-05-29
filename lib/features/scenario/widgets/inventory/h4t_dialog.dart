@@ -218,7 +218,9 @@ class _H4TDialogState extends State<H4TDialog> {
               Navigator.pop(ctx);
               widget.engine.evaluate4H4TCause(cause);
             },
-            child: Text(AppLoc.tr("Wyleczone", "Treated")),
+            child: Text(
+              AppLoc.tr("Wykluczone/Rozpoznane", "Excluded/Recognized"),
+            ),
           ),
         ],
       ),
