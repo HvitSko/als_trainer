@@ -93,6 +93,7 @@ class AlsScenarioState {
     "Tension pneumothorax (Odma)": 0,
     "Thrombosis (Zator)": 0,
   };
+  String? identifiedDominantCause;
 
   int secondsWithoutVentilation = 0; // NOWE: Stoper niedotlenienia
   bool airwayNeglectFlagged = false; // NOWE: Żeby nie spamować błędem 100 razy

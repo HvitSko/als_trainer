@@ -146,12 +146,32 @@ class _H4TDialogState extends State<H4TDialog> {
       if (cause == "Thrombosis (Zator)") displayCause = "Thrombosis (PE)";
     }
 
+    bool isDominant = state.identifiedDominantCause == cause;
+
     return GestureDetector(
       onLongPress: () => _showEvaluationDialog(context, cause, displayCause),
-      child: ActionChip(
-        label: Text(displayCause, style: const TextStyle(color: Colors.white)),
-        backgroundColor: bgColor,
-        onPressed: () => widget.engine.considerCause(cause),
+      child: Container(
+        decoration: isDominant
+            ? BoxDecoration(
+                border: Border.all(color: Colors.amberAccent, width: 2),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.amber,
+                    blurRadius: 8,
+                    spreadRadius: -2,
+                  ),
+                ],
+              )
+            : null,
+        child: ActionChip(
+          label: Text(
+            displayCause,
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: bgColor,
+          onPressed: () => widget.engine.considerCause(cause),
+        ),
       ),
     );
   }
@@ -179,22 +199,26 @@ class _H4TDialogState extends State<H4TDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(AppLoc.tr("NIE", "NO")),
+            child: Text(AppLoc.tr("Anuluj", "Cancel")),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+            onPressed: () {
+              Navigator.pop(ctx);
+              widget.engine.identifyDominantCause(cause);
+            },
+            child: Text(
+              AppLoc.tr("DOMINUJĄCA", "DOMINANT"),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             onPressed: () {
               Navigator.pop(ctx);
-              widget.engine.evaluate4H4TCause(
-                cause,
-              ); // Do silnika EBM leci Polska nazwa bazowa, żeby nie psuć switchy
+              widget.engine.evaluate4H4TCause(cause);
             },
-            child: Text(
-              AppLoc.tr(
-                "TAK, Wykluczone/Zabezpieczone",
-                "YES, Ruled out/Secured",
-              ),
-            ),
+            child: Text(AppLoc.tr("Wyleczone", "Treated")),
           ),
         ],
       ),

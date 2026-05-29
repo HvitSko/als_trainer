@@ -218,6 +218,10 @@ class GameEngine extends ChangeNotifier {
         ? true
         : state.h4tStatus[causeKey] == 1;
 
+    // NOWE: Czy gracz zgadł, jaka jest ukryta przyczyna pacjenta?
+    bool isDominantCauseCorrectlyIdentified =
+        (state.identifiedDominantCause == causeKey) && causeKey.isNotEmpty;
+
     bool isAlsCareProvided =
         state.airwayStatus != AirwayType.none ||
         state.shocksDelivered > 0 ||
@@ -229,7 +233,10 @@ class GameEngine extends ChangeNotifier {
     } else if (state.patient.hiddenCause == ReversibleCause.none) {
       roscChance = 25;
     } else {
-      roscChance = isCauseResolved ? 70 : 0;
+      // EBM MAGIA: Jeśli przyczyna jest wyleczona LUB została bezbłędnie wskazana jako dominująca (np. Tamponada)
+      roscChance = (isCauseResolved || isDominantCauseCorrectlyIdentified)
+          ? 70
+          : 0;
     }
 
     roscChance -= (state.criticalErrorsCount * 10);
@@ -1987,6 +1994,17 @@ class GameEngine extends ChangeNotifier {
   void dispose() {
     _globalTimer?.cancel();
     super.dispose();
+  }
+
+  void identifyDominantCause(String cause) {
+    state.identifiedDominantCause = cause;
+    _logEvent(
+      AppLoc.tr(
+        "DIAGNOZA: Zespół wskazał '$cause' jako dominującą przyczynę NZK. Przygotowanie do transportu/celowanej terapii.",
+        "DIAGNOSIS: Team identified '$cause' as the dominant cause of cardiac arrest. Preparing for transport/targeted therapy.",
+      ),
+    );
+    notifyListeners();
   }
 
   String _mapCauseToKey(ReversibleCause cause) {
