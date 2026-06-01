@@ -6,7 +6,10 @@ import '../models/als_state.dart';
 import '../../../app_localization.dart'; // IMPORT TŁUMACZA
 
 class ScenarioIntroScreen extends StatefulWidget {
-  const ScenarioIntroScreen({super.key});
+  // Dodajemy opcjonalny parametr z konkretnym scenariuszem!
+  final Scenario? preselectedScenario;
+
+  const ScenarioIntroScreen({super.key, this.preselectedScenario});
 
   @override
   State<ScenarioIntroScreen> createState() => _ScenarioIntroScreenState();
@@ -19,7 +22,8 @@ class _ScenarioIntroScreenState extends State<ScenarioIntroScreen> {
   @override
   void initState() {
     super.initState();
-    _currentScenario = ScenarioDatabase.getRandomScenario();
+    _currentScenario =
+        widget.preselectedScenario ?? ScenarioDatabase.getRandomScenario();
   }
 
   @override

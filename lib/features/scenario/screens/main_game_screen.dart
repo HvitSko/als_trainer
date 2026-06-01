@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
-
+import '../../menu/screens/main_menu_screen.dart';
 import '../logic/game_engine.dart';
 import '../models/scenario_model.dart';
 import '../models/als_state.dart';
@@ -363,6 +363,13 @@ class _MainGameScreenState extends State<MainGameScreen> {
                         builder: (BuildContext context) {
                           return AlertDialog(
                             backgroundColor: Colors.grey[900],
+                            shape: RoundedRectangleBorder(
+                              side: const BorderSide(
+                                color: Colors.redAccent,
+                                width: 1,
+                              ),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
                             title: Row(
                               children: [
                                 const Icon(
@@ -377,6 +384,7 @@ class _MainGameScreenState extends State<MainGameScreen> {
                                   ),
                                   style: const TextStyle(
                                     color: Colors.redAccent,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
@@ -399,12 +407,19 @@ class _MainGameScreenState extends State<MainGameScreen> {
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.red[800],
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
                                 onPressed: () {
+                                  // SKIPPY RE-ROUTING PROTOCOL:
+                                  // Importujemy menu dynamicznie i czyścimy CAŁĄ pamięć podręczną ekranów,
+                                  // rzucając gracza prosto przed maskę neonowej karetki!
+
                                   Navigator.of(context).pushAndRemoveUntil(
                                     MaterialPageRoute(
                                       builder: (context) =>
-                                          const ScenarioIntroScreen(),
+                                          const MainMenuScreen(),
                                     ),
                                     (route) => false,
                                   );
