@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import '../models/als_state.dart';
 import '../models/scenario_model.dart';
 import '../models/patient_model.dart';
-import '../../../app_localization.dart'; // IMPORT TŁUMACZA
+import '../../../app_localization.dart';
+import 'package:flutter/services.dart';
+import 'package:vibration/vibration.dart';
 
 class GameEngine extends ChangeNotifier {
   AlsScenarioState state = AlsScenarioState();
@@ -67,8 +69,19 @@ class GameEngine extends ChangeNotifier {
       // LOGIKA PĘTLI RKO
       if (state.isCprActive) {
         state.totalCprSeconds++; // ŚLEDZIMY CZAS Uciśnięć (Do CPR Fraction)
+
         if (state.cprSecondsRemaining > 0) {
           state.cprSecondsRemaining--;
+
+          // --- NOWY BLOK HAPTYCZNY: ODLICZANIE RKO ---
+          if (state.cprSecondsRemaining <= 5 && state.cprSecondsRemaining > 0) {
+            // Krótkie "tyknięcie" na 5, 4, 3, 2, 1 sekundę przed końcem
+            HapticFeedback.selectionClick();
+          } else if (state.cprSecondsRemaining == 0) {
+            // Głęboka, mocna wibracja dokładnie w momencie osiągnięcia zera
+            HapticFeedback.vibrate();
+          }
+          // -------------------------------------------
         }
 
         if (state.cprSecondsRemaining == 0) {
@@ -406,6 +419,28 @@ class GameEngine extends ChangeNotifier {
   void deliverShock() {
     if (!state.isMonitorOn || !state.isDefibCharged) return;
 
+    // --- NOWY BLOK: PRAWDZIWE WYŁADOWANIE DEFIBRYLATORA (Paczka VIBRATION) ---
+    // Strzelamy prądem przez pełne 600 milisekund na maksymalnej mocy (255)!
+    Vibration.hasVibrator().then((hasVibrator) {
+      if (hasVibrator == true) {
+        Vibration.hasAmplitudeControl().then((hasAmplitude) {
+          if (hasAmplitude == true) {
+            // Urządzenie wspiera kontrolę siły wibracji - dajemy MAX (255)
+            Vibration.vibrate(duration: 600, amplitude: 255);
+          } else {
+            // Zwykłe urządzenia (bez kontroli siły) - po prostu długo wibrują
+            Vibration.vibrate(duration: 600);
+          }
+        });
+      }
+    });
+
+    // Opcjonalnie: możemy zostawić "tąpnięcie mechaniczne" po zakończeniu fali (odbicie urządzenia)
+    Future.delayed(const Duration(milliseconds: 650), () {
+      HapticFeedback.heavyImpact();
+    });
+    // --------------------------------------------------------------------------
+
     int shockEnergy = state.selectedEnergy;
 
     int lastAnalysisIndex = state.auditLog.indexWhere(
@@ -431,6 +466,7 @@ class GameEngine extends ChangeNotifier {
         isError: true,
       );
     }
+
     _logEvent(
       AppLoc.tr(
         "BŁYSK: Wykonano defibrylację energią $shockEnergy J.",
