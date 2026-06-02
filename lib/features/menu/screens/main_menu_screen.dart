@@ -3,14 +3,18 @@ import '../../scenario/screens/scenario_intro_screen.dart';
 import '../../scenario/models/scenario_database.dart';
 import '../../scenario/models/scenario_model.dart';
 import '../../settings/settings_dialog.dart';
+import '../../settings/settings_manager.dart';
 import '../../../app_localization.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsManager>();
+    AppLoc.isEn = settings.isEnglish;
     return Scaffold(
       body: Stack(
         children: [
@@ -32,7 +36,10 @@ class MainMenuScreen extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.black.withOpacity(0.95), Colors.transparent],
+                  colors: [
+                    Colors.black.withValues(alpha: 0.95),
+                    Colors.transparent,
+                  ],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ),
@@ -264,31 +271,43 @@ class MainMenuScreen extends StatelessWidget {
     return ListView(
       children: [
         _buildCategoryCard(
-          title: "NZK (Zatrzymanie Krążenia)",
-          subtitle: "VF, pVT, Asystolia, PEA, 4H4T",
+          title: AppLoc.tr("NZK (Zatrzymanie Krążenia)", "Cardiac Arrest"),
+          subtitle: AppLoc.tr(
+            "VF, pVT, Asystolia, PEA, 4H4T",
+            "VF, pVT, Asystole, PEA, 4H4T",
+          ),
           icon: Icons.monitor_heart,
           color: Colors.redAccent,
           onTap: onNzkSelected, // <-- TUTAJ CZYSTY CALLBACK
         ),
         _buildCategoryCard(
-          title: "Bradykardie",
-          subtitle: "Pacing, Atropina - W BUDOWIE",
+          title: AppLoc.tr("Bradykardie", "Bradycardias"),
+          subtitle: AppLoc.tr(
+            "Pacing, Atropina - W BUDOWIE",
+            "Pacing, Atropine - WIP",
+          ),
           icon: Icons.trending_down,
           color: Colors.orangeAccent,
           onTap: () {},
           isWip: true,
         ),
         _buildCategoryCard(
-          title: "Tachyarytmie",
-          subtitle: "Kardiowersja, Adenozyna - W BUDOWIE",
+          title: AppLoc.tr("Tachyarytmie", "Tachyarrhythmias"),
+          subtitle: AppLoc.tr(
+            "Kardiowersja, Adenozyna - W BUDOWIE",
+            "Cardioversion, Adenosine - WIP",
+          ),
           icon: Icons.trending_up,
           color: Colors.purpleAccent,
           onTap: () {},
           isWip: true,
         ),
         _buildCategoryCard(
-          title: "Stany Specjalne",
-          subtitle: "Anafilaksja, Zawał STEMI - W BUDOWIE",
+          title: AppLoc.tr("Stany Specjalne", "Special Circumstances"),
+          subtitle: AppLoc.tr(
+            "Anafilaksja, Zawał STEMI - W BUDOWIE",
+            "Anaphylaxis, STEMI - WIP",
+          ),
           icon: Icons.star_border,
           color: Colors.greenAccent,
           onTap: () {},

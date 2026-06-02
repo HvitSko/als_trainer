@@ -11,8 +11,8 @@ class ScenarioDatabase {
       Scenario(
         id: 'tox_opioid_01',
         title: AppLoc.tr(
-          'Zatrucie Opioidami (Toxins)',
-          'Opioid Overdose (Toxins)',
+          'Nieprzytomny na klatce schodowej',
+          'Unconscious in the stairwell',
         ),
         dispatchInfo: AppLoc.tr(
           'Wezwanie z CPR: Mężczyzna, ok. 30 lat, nieprzytomny, nie oddycha. Zgłasza sąsiadka, która znalazła go na klatce schodowej.',
@@ -52,10 +52,7 @@ class ScenarioDatabase {
       // 2. HIPOTERMIA
       Scenario(
         id: "nzk_hypothermia_01",
-        title: AppLoc.tr(
-          "Mroźny Poranek (Hipotermia)",
-          "Freezing Morning (Hypothermia)",
-        ),
+        title: AppLoc.tr("Mroźny Poranek", "Freezing Morning"),
         dispatchInfo: AppLoc.tr(
           "ZRM zadysponowany do mężczyzny leżącego na przystanku autobusowym. Temperatura otoczenia -5°C. Pacjent bezdomny, brak reakcji, brak oddechu.",
           "EMS dispatched to a male lying at a bus stop. Ambient temp -5°C (23°F). Homeless patient, unresponsive, apneic.",
@@ -88,10 +85,7 @@ class ScenarioDatabase {
       // 3. HIPOWOLEMIA
       Scenario(
         id: "nzk_hypovolemia_01",
-        title: AppLoc.tr(
-          "Czarne Wymioty (Hipowolemia)",
-          "Black Vomit (Hypovolemia)",
-        ),
+        title: AppLoc.tr("Czarne Wymioty", "Black Vomit"),
         dispatchInfo: AppLoc.tr(
           "Kobieta ze znaną chorobą alkoholową i marskością wątroby. Zgłoszono masywne, fusowate wymioty. Zespół wchodzi, pacjentka traci przytomność i przestaje oddychać.",
           "Female with known history of alcoholism and liver cirrhosis. Massive coffee-ground emesis reported. Patient loses consciousness and stops breathing upon EMS arrival.",
@@ -130,10 +124,7 @@ class ScenarioDatabase {
       // 4. ODMA PRĘŻNA
       Scenario(
         id: "nzk_pneumothorax_01",
-        title: AppLoc.tr(
-          "Duszność i Cisza (Odma Prężna)",
-          "Dyspnea and Silence (Tension Pneumothorax)",
-        ),
+        title: AppLoc.tr("Duszność i Cisza", "Dyspnea and Silence"),
         dispatchInfo: AppLoc.tr(
           "19-latek z ciężką astmą oskrzelową. Nagłe, gwałtowne pogorszenie, silna duszność, a potem zatrzymanie krążenia przed przybyciem ZRM.",
           "19 y/o male with severe bronchial asthma. Sudden severe exacerbation, acute dyspnea, followed by cardiac arrest prior to EMS arrival.",
@@ -169,10 +160,7 @@ class ScenarioDatabase {
       // 5. ZATOROWOŚĆ
       Scenario(
         id: "nzk_thrombosis_01",
-        title: AppLoc.tr(
-          "Powrót z Azji (Zatorowość)",
-          "Return from Asia (Thrombosis/PE)",
-        ),
+        title: AppLoc.tr("Powrót z Azji", "Return from Asia"),
         dispatchInfo: AppLoc.tr(
           "Kobieta zasłabła na lotnisku. Wczoraj wróciła z 14-godzinnego lotu z Tajlandii. Zgłaszała ból w klatce piersiowej i duszność.",
           "Female collapsed at the airport. Returned yesterday from a 14-hour flight from Thailand. Complained of chest pain and dyspnea.",
@@ -205,10 +193,7 @@ class ScenarioDatabase {
       // 6. TAMPONADA OSIERDZIA
       Scenario(
         id: "nzk_tamponade_01",
-        title: AppLoc.tr(
-          "Kierownica na Klatce (Tamponada)",
-          "Steering Wheel Trauma (Tamponade)",
-        ),
+        title: AppLoc.tr("Kierownica na Klatce", "Steering Wheel Trauma"),
         dispatchInfo: AppLoc.tr(
           "Wypadek komunikacyjny. Auto uderzyło w drzewo. Uderzenie klatką piersiową w kierownicę (brak zapiętych pasów).",
           "Motor vehicle collision. Car hit a tree. Blunt chest trauma from steering wheel impact (unrestrained driver).",
@@ -244,10 +229,7 @@ class ScenarioDatabase {
       // 7. ZAWAŁ SERCA (CZYSTE NZK DO DEFIBRYLACJI)
       Scenario(
         id: "nzk_stemi_02",
-        title: AppLoc.tr(
-          "Ból w Klatce na Siłowni (Standard / VF)",
-          "Chest Pain at the Gym (Standard / VF)",
-        ),
+        title: AppLoc.tr("Ból w Klatce na Siłowni", "Chest Pain at the Gym"),
         dispatchInfo: AppLoc.tr(
           "45-letni mężczyzna zgłosił silny ból w klatce piersiowej podczas wyciskania sztangi. Upadł nieprzytomny. Świadkowie podjęli RKO.",
           "45 y/o male reported severe chest pain while bench pressing. Collapsed unconscious. Bystander CPR in progress.",
@@ -286,10 +268,7 @@ class ScenarioDatabase {
       // 8. HIPOKSJA (ZADŁAWIENIE)
       Scenario(
         id: "nzk_hypoxia_01",
-        title: AppLoc.tr(
-          "Niedzielny Obiad (Hipoksja)",
-          "Sunday Dinner (Hypoxia)",
-        ),
+        title: AppLoc.tr("Niedzielny Obiad", "Sunday Dinner"),
         dispatchInfo: AppLoc.tr(
           "Mężczyzna zadławił się kawałkiem mięsa podczas obiadu rodzinnego. Próby rękoczynu Heimlicha przez bliskich nieskuteczne. Doszło do NZK.",
           "Male choked on a piece of meat during a family dinner. Bystander Heimlich maneuver unsuccessful. Progressed to cardiac arrest.",
@@ -322,10 +301,7 @@ class ScenarioDatabase {
       // 9. HIPER/HIPOKALIEMIA (DIALIZY)
       Scenario(
         id: "nzk_hyperkalemia_01",
-        title: AppLoc.tr(
-          "Pominięta Dializa (Zab. Elektrolitowe)",
-          "Missed Dialysis (Electrolytes)",
-        ),
+        title: AppLoc.tr("Pominięta Dializa", "Missed Dialysis"),
         dispatchInfo: AppLoc.tr(
           "Starszy mężczyzna ze schyłkową niewydolnością nerek. Z powodu awarii auta pominął dwie ostatnie stacje dializ. Znaleziony rano bez funkcji życiowych.",
           "Elderly male with end-stage renal disease (ESRD). Missed last two dialysis sessions due to car breakdown. Found pulseless in the morning.",
@@ -358,10 +334,7 @@ class ScenarioDatabase {
       // 10. HIPOKSJA (TONIĘCIE)
       Scenario(
         id: "nzk_hypoxia_02",
-        title: AppLoc.tr(
-          "Wyciągnięty z Wody (Tonięcie)",
-          "Pulled from Water (Drowning)",
-        ),
+        title: AppLoc.tr("Wyciągnięty z Wody", "Pulled from Water"),
         dispatchInfo: AppLoc.tr(
           "Zgłoszenie nad jeziorem. Młody mężczyzna wyciągnięty z wody po ok. 5 minutach pod powierzchnią. Plażowicze prowadzą chaotyczne RKO.",
           "Lake emergency call. Young male pulled from water after approx. 5 minutes submerged. Bystanders performing chaotic CPR.",

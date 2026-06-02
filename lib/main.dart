@@ -118,10 +118,10 @@ class LanguageSelectionScreen extends StatelessWidget {
         await settings.setLanguage(english: isEn);
         await settings.completeOnboarding(); // Flaga: Onboarding Zakończony
 
-        // 2. Wpuszczamy małpę do symulatora
+        // 2. Wpuszczamy małpę do menu głównego
         if (context.mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const ScenarioIntroScreen()),
+            MaterialPageRoute(builder: (_) => const MainMenuScreen()),
           );
         }
       },
