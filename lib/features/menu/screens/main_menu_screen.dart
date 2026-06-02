@@ -78,11 +78,8 @@ class MainMenuScreen extends StatelessWidget {
                 ),
 
                 _buildNeonButton(
-                  text: AppLoc.tr(
-                    "Baza Wiedzy / O Aplikacji",
-                    "Knowledge Base / About",
-                  ),
-                  icon: Icons.school,
+                  text: AppLoc.tr("O APLIKACJI", "ABOUT THE APP"),
+                  icon: Icons.info_outline,
                   color: Colors.purpleAccent,
                   onTap: () => _showDisclaimerDialog(context),
                 ),
@@ -283,8 +280,8 @@ class MainMenuScreen extends StatelessWidget {
         _buildCategoryCard(
           title: AppLoc.tr("Bradykardie", "Bradycardias"),
           subtitle: AppLoc.tr(
-            "Pacing, Atropina - W BUDOWIE",
-            "Pacing, Atropine - WIP",
+            "Elektrostymulacja, Atropina - W BUDOWIE",
+            "Electrostimulation, Atropine - WIP",
           ),
           icon: Icons.trending_down,
           color: Colors.orangeAccent,
@@ -400,28 +397,86 @@ class MainMenuScreen extends StatelessWidget {
   void _showDisclaimerDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text(
-          "Disclaimer / Nota Prawna",
-          style: TextStyle(color: Colors.purpleAccent),
-        ),
-        content: Text(
-          AppLoc.tr(
-            "Aplikacja 'ALS Trainer' ma charakter wyłącznie edukacyjny i symulacyjny. Nie zastępuje formalnego wykształcenia medycznego, ani wytycznych ERC. Oparto na silniku EBM (Skippy).",
-            "The 'ALS Trainer' application is for educational and simulation purposes only. It does not replace formal medical education or ERC guidelines. Powered by EBM Engine (Skippy).",
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth:
+                MediaQuery.of(context).size.width *
+                0.75, // Zabezpieczenie szerokości dla Web/Tablet
+            maxHeight:
+                MediaQuery.of(context).size.height *
+                0.85, // Zabezpieczenie przed overflow
           ),
-          style: const TextStyle(color: Colors.white),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              "OK",
-              style: TextStyle(color: Colors.purpleAccent),
-            ),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(
+              alpha: 0.9,
+            ), // Mroczne, lekko prześwitujące tło
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.purpleAccent, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.purpleAccent.withValues(alpha: 0.3),
+                blurRadius: 15,
+              ),
+            ],
           ),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // NAGŁÓWEK
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Icon(
+                    Icons.info_outline,
+                    color: Colors.purpleAccent,
+                    size: 28,
+                  ),
+                  Expanded(
+                    child: Text(
+                      AppLoc.tr("O APLIKACJI", "ABOUT THE APP"),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.purpleAccent),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const Divider(color: Colors.purpleAccent),
+              const SizedBox(height: 10),
+
+              // TREŚĆ (SCROLLOWALNA)
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Text(
+                    AppLoc.tr(
+                      "Ta aplikacja powstała i ewoluuje z pomysłu, który narodził się podczas nauki. Powstała aby umożliwić interaktywne przypomnienie i przećwiczenie schematów ALS w każdym miejscu i o każdej porze.\n\nWszystkie scenariusze i algorytmy opierają się na wytycznych ERC oraz aktualnej wiedzy medycznej. Pamiętaj jednak, że ze względu na specyfikę gry mobilnej wprowadzone zostały pewne uproszczenia mechaniczne. Aplikacja ma charakter wyłącznie symulacyjno-edukacyjny oraz rozrywkowy. W żadnym wypadku nie zastępuje ona profesjonalnych kursów, certyfikowanych szkoleń ani oficjalnej literatury medycznej.\n\nTa aplikacja jest (i będzie) darmowa, pozbawiona reklam i mikropłatności. Jeśli uznasz ją za wartościową, podaj ją dalej.\n\nGra stale się rozwija, a w planach mam dodawanie kolejnych modułów (m.in. bradykardie i tachyarytmie). Jeśli zauważysz błąd logiczny, medyczny lub masz pomysł na nową mechanikę, możesz je przesłać na [tu wstawię adres email].",
+                      "This application was created and evolves from an idea born during studies. It was created to enable interactive review and practice of ALS algorithms anywhere, anytime.\n\nAll scenarios and algorithms are based on ERC guidelines and current medical knowledge. Remember, however, that due to the nature of a mobile game, some mechanical simplifications have been introduced. The application is for simulation, educational, and entertainment purposes only. Under no circumstances does it replace professional courses, certified training, or official medical literature.\n\nThis application is (and will be) free, without ads or microtransactions. If you find it valuable, pass it on.\n\nThe game is constantly developing, and I plan to add more modules (e.g., bradycardias and tachyarrhythmias). If you notice a logical or medical error, or have an idea for a new mechanic, you can send them to [email will appear here].",
+                    ),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      height:
+                          1.4, // Zwiększenie odstępu między liniami dla czytelności
+                    ),
+                    textAlign: TextAlign.justify,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
