@@ -164,16 +164,22 @@ class GameEngine extends ChangeNotifier {
 
   void toggleMonitor() {
     state.isMonitorOn = !state.isMonitorOn;
-    if (state.isMonitorOn &&
-        state.currentPhase == ResuscitationPhase.assessmentABCDE) {
-      connectMonitor();
-    } else if (!state.isMonitorOn) {
+    if (state.isMonitorOn) {
       _logEvent(
         AppLoc.tr(
-          "INFO: Kardiomonitor został wyłączony.",
-          "INFO: Cardiac monitor has been turned off.",
+          "Włączono defibrylator/monitor. Oceń rytm z zapisu EKG.",
+          "Defibrillator/monitor turned on. Assess rhythm from ECG.",
         ),
       );
+    } else {
+      _logEvent(
+        AppLoc.tr(
+          "Wyłączono defibrylator/monitor.",
+          "Defibrillator/monitor turned off.",
+        ),
+      );
+      state.isDefibCharged =
+          false; // Dla bezpieczeństwa rozładowujemy wyłączony sprzęt
     }
     notifyListeners();
   }

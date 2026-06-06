@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../logic/game_engine.dart';
 import '../models/als_state.dart';
 import '../../../app_localization.dart'; // IMPORT TŁUMACZA
+import 'package:flutter/scheduler.dart';
 
 class MonitorView extends StatefulWidget {
   final GameEngine engine;
@@ -775,80 +776,98 @@ class SweepWaveDisplay extends StatefulWidget {
 
 class _SweepWaveDisplayState extends State<SweepWaveDisplay>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  // Zastępujemy AnimationController surowym Tickerem
+  late Ticker _ticker;
+
   static const int maxPoints = 300;
   final List<double> _dataPoints = List.filled(maxPoints, 0.0);
   int _currentIndex = 0;
+
+  final WaveformEngine _ecgEngine = WaveformEngine();
+
   double _internalTime = 0.0;
   final math.Random _random = math.Random();
+
+  // --- ZMIENNE DO STABILIZACJI KLATKAŻU (GAME LOOP ACCUMULATOR) ---
+  Duration _lastElapsed = Duration.zero;
+  double _timeAccumulator = 0.0;
+  // 0.02 sekundy oznacza 50 punktów generowanych na sekundę.
+  // Przy 300 punktach (maxPoints) przeskok przez cały ekran zajmie równiutkie 6 sekund!
+  static const double _timePerPoint = 0.02;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat();
-    _controller.addListener(_generateNextPoint);
+    // Odpalamy surowy Ticker do precyzyjnego pomiaru czasu pomiędzy klatkami
+    _ticker = createTicker(_onTick)..start();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _ticker.dispose();
     super.dispose();
   }
 
-  void _generateNextPoint() {
+  // Ta metoda odpala się przy każdej klatce wyrenderowanej przez system
+  void _onTick(Duration elapsed) {
     if (!mounted) return;
+
+    // 1. Obliczamy, ile realnego czasu (w sekundach) minęło od poprzedniej klatki
+    double deltaSeconds = (elapsed - _lastElapsed).inMicroseconds / 1000000.0;
+    _lastElapsed = elapsed;
+
+    // Zabezpieczenie przed "spiralą śmierci" (np. gdy aplikacja była zminimalizowana przez 5 minut)
+    if (deltaSeconds > 0.1) deltaSeconds = 0.1;
+
+    // 2. Dodajemy upływający czas do naszego zbiornika (akumulatora)
+    _timeAccumulator += deltaSeconds;
+
+    bool pointsGenerated = false;
+
+    // 3. Generujemy punkty tak długo, aż opróżnimy zbiornik.
+    // Niezależnie czy masz 60Hz, 120Hz czy 30Hz - sygnał zawsze wygeneruje 50 pkt/sek!
+    while (_timeAccumulator >= _timePerPoint) {
+      _generateNextPoint(_timePerPoint); // Przekazujemy stałe dt = 0.02s
+      _timeAccumulator -= _timePerPoint;
+      pointsGenerated = true;
+    }
+
+    // 4. Odświeżamy widok TYLKO jeśli sygnał posunął się do przodu
+    if (pointsGenerated) {
+      setState(() {});
+    }
+  }
+
+  // Główna logika rysująca sygnał (teraz przyjmuje z góry ustalony dt)
+  void _generateNextPoint(double dt) {
     double y = 0;
-    _internalTime += 0.035;
+    _internalTime += dt;
 
     if (widget.waveType == WaveType.ecg) {
-      if (widget.isCprActive == true) {
-        y =
-            math.sin(_internalTime * 5.7) * 35 +
-            math.sin(_internalTime * 50) * 4;
-      } else if (widget.rhythm == PatientRhythm.unknown) {
-        y = 0.0;
-      } else if (widget.rhythm == PatientRhythm.vf) {
-        y =
-            (math.sin(_internalTime * 4.5) * 12 +
-                math.cos(_internalTime * 5.5) * 16 +
-                math.sin(_internalTime * 7.2) * 8 +
-                (_random.nextDouble() - 0.5) * 8) *
-            widget.ecgGain;
-      } else if (widget.rhythm == PatientRhythm.pvt) {
-        y = ((math.sin(_internalTime * 11).abs() * -45) + 20) * widget.ecgGain;
-      } else if (widget.rhythm == PatientRhythm.asystole) {
-        y =
-            (math.sin(_internalTime * 2) * 1.5 +
-                (_random.nextDouble() - 0.5) * 2) *
-            widget.ecgGain;
-      } else {
-        double phase = (_internalTime * 2.5) % 6.0;
-        double baseLine = 0;
-        if (phase > 0.5 && phase < 0.9)
-          baseLine = -6 * math.sin((phase - 0.5) * math.pi / 0.4);
-        else if (phase > 1.2 && phase < 1.5) {
-          double qrsPhase = phase - 1.2;
-          if (qrsPhase < 0.1)
-            baseLine = 5;
-          else if (qrsPhase < 0.2)
-            baseLine = -45;
-          else
-            baseLine = 15;
-        } else if (phase > 1.8 && phase < 2.6)
-          baseLine = -10 * math.sin((phase - 1.8) * math.pi / 0.8);
-        y = baseLine * widget.ecgGain;
+      // Docelowo: double targetHr = patient.heartRate;
+      double targetHr = 70.0;
+
+      SignalOutput output = _ecgEngine.getNextValue(
+        dt,
+        widget.rhythm ?? PatientRhythm.asystole,
+        widget.isCprActive ?? false,
+        targetHr,
+      );
+
+      y = output.value * widget.ecgGain;
+
+      if (output.isRPeak) {
+        // Tu w przyszłości dodasz np.: AudioPlayer().play('beep.mp3');
       }
     } else if (widget.waveType == WaveType.spo2) {
       if (widget.isAttached == true) {
         if (widget.hasPulse == true) {
           double phase = (_internalTime * 2.5) % 6.0;
-          if (phase < 2.0)
+          if (phase < 2.0) {
             y = -20 * math.sin(phase * math.pi / 2.0);
-          else if (phase > 2.5 && phase < 4.0)
+          } else if (phase > 2.5 && phase < 4.0) {
             y = -8 * math.sin((phase - 2.5) * math.pi / 1.5);
+          }
         } else {
           y = (_random.nextDouble() - 0.5) * 2;
         }
@@ -867,10 +886,9 @@ class _SweepWaveDisplayState extends State<SweepWaveDisplay>
       }
     }
 
-    setState(() {
-      _dataPoints[_currentIndex] = y;
-      _currentIndex = (_currentIndex + 1) % maxPoints;
-    });
+    // Dodanie punktu do tablicy cyklicznej
+    _dataPoints[_currentIndex] = y;
+    _currentIndex = (_currentIndex + 1) % maxPoints;
   }
 
   @override
@@ -963,4 +981,191 @@ class GridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(GridPainter old) => false;
+}
+// ============================================================================
+// NOWA ARCHITEKTURA DSP (DIGITAL SIGNAL PROCESSING) DLA KRYZYWEJ EKG
+// ============================================================================
+
+class SignalOutput {
+  final double value;
+  final bool isRPeak;
+  SignalOutput(this.value, this.isRPeak);
+}
+
+abstract class RhythmGenerator {
+  SignalOutput getNextValue(double dt, double hr);
+}
+
+class AsystoleGenerator implements RhythmGenerator {
+  double _time = 0;
+  final math.Random _random = math.Random();
+
+  @override
+  SignalOutput getNextValue(double dt, double hr) {
+    _time += dt;
+    // Pływająca linia bazowa (oddychanie, drobne ruchy) + mikroszum
+    double y = math.sin(_time * 2) * 1.5 + (_random.nextDouble() - 0.5) * 2.0;
+    return SignalOutput(y, false);
+  }
+}
+
+class VfGenerator implements RhythmGenerator {
+  double _time = 0;
+
+  @override
+  SignalOutput getNextValue(double dt, double hr) {
+    _time += dt;
+
+    // ZWIĘKSZONA CZĘSTOTLIWOŚĆ (Prawdziwe Coarse VF)
+    // Fale są teraz znacznie gęstsze i szybsze, imitując elektryczny chaos
+    // o częstotliwości uderzeń rzędu 250-350/min.
+    double wave1 = math.sin(_time * 15.3) * 16.0;
+    double wave2 = math.sin(_time * 24.7 + 1.2) * 10.0;
+    double wave3 = math.sin(_time * 11.8 + 0.5) * 18.0;
+    double wave4 = math.cos(_time * 33.4) * 6.0;
+
+    double y = wave1 + wave2 + wave3 + wave4;
+
+    return SignalOutput(y, false); // VF nie ma wykrywalnego R-Peak
+  }
+}
+
+class PvtGenerator implements RhythmGenerator {
+  double _time = 0;
+
+  @override
+  SignalOutput getNextValue(double dt, double hr) {
+    _time += dt;
+
+    // MONOMORPHIC VENTRICULAR TACHYCARDIA (Szerokie kompleksy)
+    // Częstość dla VT to zwykle ~180-200/min. Ustawiamy bazowo na ok. 3.2 Hz.
+    double freq = 3.2;
+    double phase = (_time * freq * math.pi * 2);
+
+    // Zamiast brzydkiego "odbijania" (abs), używamy klasycznej sinusoidy
+    // z domieszką asymetrycznej harmonicznej, co poszerza wierzchołek
+    // i nadaje fali typowy kształt szerokiego zespołu QRS (V-shape).
+    double y = math.sin(phase) * 35.0 + math.sin(phase * 2.0 - 1.5) * 12.0;
+
+    // Wykrywanie R-Peak (dźwięk pulsometru na szczycie fali VT)
+    bool isRPeak = false;
+    double currentPhaseCycle = (_time * freq) % 1.0;
+    // Okienko wyzwolenia dźwięku
+    if (currentPhaseCycle > 0.22 && currentPhaseCycle < 0.28) {
+      isRPeak = true;
+    }
+
+    return SignalOutput(y, isRPeak);
+  }
+}
+
+class OrganizedRhythmGenerator implements RhythmGenerator {
+  double _phaseTime = 0.0;
+
+  @override
+  SignalOutput getNextValue(double dt, double hr) {
+    // Obliczamy całkowity czas jednego cyklu serca w sekundach
+    double cycleDuration = 60.0 / hr;
+    _phaseTime += dt;
+
+    // Zapętlenie cyklu
+    if (_phaseTime >= cycleDuration) {
+      _phaseTime -= cycleDuration;
+    }
+
+    double y = 0.0;
+    bool isRPeak = false;
+
+    // TWARDE DEFINICJE CZASOWE (Szerokość załamków NIE zależy od HR!)
+    // P Wave: 0.1s szerokości, QRS: 0.1s, T Wave: 0.2s
+
+    if (_phaseTime > 0.1 && _phaseTime < 0.2) {
+      // Załamek P
+      double pPhase = (_phaseTime - 0.1) / 0.1; // Normalizacja 0.0 -> 1.0
+      y = -6 * math.sin(pPhase * math.pi);
+    } else if (_phaseTime >= 0.3 && _phaseTime < 0.4) {
+      // Zespół QRS (Szerokość 100ms)
+      double qrsPhase = (_phaseTime - 0.3) / 0.1;
+      if (qrsPhase < 0.2) {
+        y = 5; // Q
+      } else if (qrsPhase < 0.5) {
+        y = -45; // R
+        if (qrsPhase > 0.3 && qrsPhase < 0.4) isRPeak = true; // TRIGGER AUDIO!
+      } else {
+        y = 15; // S
+      }
+    } else if (_phaseTime > 0.5 && _phaseTime < 0.7) {
+      // Załamek T
+      double tPhase = (_phaseTime - 0.5) / 0.2;
+      y = -10 * math.sin(tPhase * math.pi);
+    }
+    // Reszta cyklu (_phaseTime > 0.7 aż do cycleDuration) to linia izoelektryczna (odstęp TP)
+
+    return SignalOutput(y, isRPeak);
+  }
+}
+
+class WaveformEngine {
+  RhythmGenerator _currentGenerator = AsystoleGenerator();
+  PatientRhythm _lastRhythm = PatientRhythm.unknown;
+  double _transitionBlend = 1.0;
+  double _lastY = 0.0;
+
+  SignalOutput getNextValue(
+    double dt,
+    PatientRhythm rhythm,
+    bool isCpr,
+    double targetHr,
+  ) {
+    // 1. OBSŁUGA ZMIANY RYTMU (Płynne przejście - Interpolacja)
+    if (rhythm != _lastRhythm) {
+      _transitionBlend = 0.0; // Zaczynamy płynne przejście
+      _lastRhythm = rhythm;
+
+      switch (rhythm) {
+        case PatientRhythm.vf:
+          _currentGenerator = VfGenerator();
+          break;
+        case PatientRhythm.pvt:
+          _currentGenerator = PvtGenerator();
+          break;
+        case PatientRhythm.pea:
+        case PatientRhythm.unknown: // Fallback na zorganizowany
+          _currentGenerator = OrganizedRhythmGenerator();
+          break;
+        case PatientRhythm.asystole:
+        default:
+          _currentGenerator = AsystoleGenerator();
+          break;
+      }
+    }
+
+    // Pobieramy wartość z aktywnego generatora
+    SignalOutput out = _currentGenerator.getNextValue(dt, targetHr);
+    double y = out.value;
+
+    // Aplikujemy interpolację dla płynnego połączenia przy zmianie rytmu (Crossfade 0.5s)
+    if (_transitionBlend < 1.0) {
+      _transitionBlend += dt * 2.0; // Przejście trwa ok. 0.5 sekundy
+      if (_transitionBlend > 1.0) _transitionBlend = 1.0;
+      // Interpolacja między ostatnio zapamiętanym punktem, a nowym rytmem
+      y = (_lastY * (1.0 - _transitionBlend)) + (y * _transitionBlend);
+    }
+
+    // 2. DOMIESZKA ARTEFAKTÓW (RKO)
+    if (isCpr) {
+      // Uciśnięcia klatki piersiowej (Częstość ok. 110/min -> ~1.8 Hz)
+      // Dodajemy artefakty DO aktualnego rytmu, a nie zamiast niego!
+      double cprArtifact =
+          math.sin(DateTime.now().millisecondsSinceEpoch / 1000.0 * 11.3) * 35;
+      y += cprArtifact;
+      out = SignalOutput(
+        y,
+        false,
+      ); // W trakcie RKO pulsometr nie wyłapie prawdziwego R-Peak
+    }
+
+    _lastY = y;
+    return out;
+  }
 }
